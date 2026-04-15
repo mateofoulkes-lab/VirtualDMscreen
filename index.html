@@ -426,9 +426,35 @@
       height: 48px;
     }
 
-    .sidebar-card.compact .presence-toggle {
-      font-size: 9px;
-      padding: 3px 6px;
+    .character-context-menu {
+      position: fixed;
+      z-index: 5000;
+      min-width: 170px;
+      background: rgba(11, 16, 32, 0.98);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px;
+      box-shadow: 0 12px 24px rgba(0,0,0,.45);
+      padding: 5px;
+    }
+
+    .character-context-menu[hidden] {
+      display: none;
+    }
+
+    .character-context-menu-item {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 7px 8px;
+      cursor: pointer;
+    }
+
+    .character-context-menu-item:hover {
+      background: rgba(122,162,255,.16);
+      border-color: rgba(122,162,255,.34);
     }
 
     .module {
@@ -719,6 +745,10 @@
     </div>
   </div>
 
+  <div class="character-context-menu" id="characterContextMenu" hidden>
+    <button class="character-context-menu-item" id="characterContextToggleBtn" type="button"></button>
+  </div>
+
   <dialog id="moduleDialog">
     <div class="dialog-inner">
       <h3>Agregar módulo</h3>
@@ -786,6 +816,9 @@
     const appMenuEl = document.getElementById('appMenu');
     const screenMenuBtnEl = document.getElementById('screenMenuBtn');
     const screenMenuEl = document.getElementById('screenMenu');
+    const characterContextMenuEl = document.getElementById('characterContextMenu');
+    const characterContextToggleBtnEl = document.getElementById('characterContextToggleBtn');
+    let contextMenuCharacter = null;
 
     function getPanelsForActiveScreen() {
       return demoState.panels.filter(p => p.screen_id === demoState.activeScreenId);
@@ -1059,6 +1092,7 @@
               <div class="statsline">${ch.stats}</div>
             </div>
           `;
+          card.addEventListener('contextmenu', (event) => openCharacterContextMenu(event, ch));
 
           card.querySelector('.presence-toggle').addEventListener('click', (event) => {
             event.stopPropagation();
@@ -1129,6 +1163,20 @@
     function closeMenus() {
       appMenuEl.classList.remove('open');
       screenMenuEl.classList.remove('open');
+    }
+
+    function closeCharacterContextMenu() {
+      characterContextMenuEl.hidden = true;
+      contextMenuCharacter = null;
+    }
+
+    function openCharacterContextMenu(event, character) {
+      event.preventDefault();
+      contextMenuCharacter = character;
+      characterContextToggleBtnEl.textContent = character.absent ? 'Marcar como Presente' : 'Marcar como Ausente';
+      characterContextMenuEl.style.left = `${event.clientX}px`;
+      characterContextMenuEl.style.top = `${event.clientY}px`;
+      characterContextMenuEl.hidden = false;
     }
 
     document.getElementById('addModuleBtn').addEventListener('click', openModuleDialog);
@@ -1208,6 +1256,13 @@
       renderSidebar();
     });
 
+    characterContextToggleBtnEl.addEventListener('click', () => {
+      if (!contextMenuCharacter) return;
+      contextMenuCharacter.absent = contextMenuCharacter.absent ? 0 : 1;
+      closeCharacterContextMenu();
+      renderSidebar();
+    });
+
     appMenuBtnEl.addEventListener('click', (event) => {
       event.stopPropagation();
       const open = appMenuEl.classList.contains('open');
@@ -1222,7 +1277,16 @@
       if (!open) screenMenuEl.classList.add('open');
     });
 
-    document.addEventListener('click', closeMenus);
+    document.addEventListener('click', () => {
+      closeMenus();
+      closeCharacterContextMenu();
+    });
+
+    document.addEventListener('contextmenu', (event) => {
+      if (!event.target.closest('.sidebar-card')) {
+        closeCharacterContextMenu();
+      }
+    });
 
     window.addEventListener('resize', () => {
       getModulesForActivePanel().forEach((mod) => clampModuleToWorkspace(mod));
