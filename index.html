@@ -785,37 +785,15 @@
   </dialog>
 
   <script>
-    const MODULE_LIBRARY = [
-      { id: 'encounters', name: 'Encuentros', html: 'modules/encounters/index.html', defaultW: 520, defaultH: 340 },
-      { id: 'dice_roller', name: 'Tirador de dados', html: 'modules/dice-roller/index.html', defaultW: 360, defaultH: 260 },
-      { id: 'notes', name: 'Notas', html: 'modules/notes/index.html', defaultW: 340, defaultH: 240 },
-      { id: 'image_viewer', name: 'Imagen', html: 'modules/image-viewer/index.html', defaultW: 360, defaultH: 260 },
-      { id: 'name_generator_quick', name: 'Nombres rápidos', html: 'modules/name-generator-quick/index.html', defaultW: 360, defaultH: 260 },
-      { id: 'character_editor', name: 'Editor de personajes', html: 'modules/character-editor/index.html', defaultW: 520, defaultH: 420 }
-    ];
-
-    const demoState = {
-      activeScreenId: 'screen-1',
-      activePanelId: 'panel-1',
+    const appState = {
+      activeScreenId: null,
+      activePanelId: null,
       gridSize: 0,
       sidebarMode: 'compact',
-      screens: [
-        { screen_id: 'screen-1', name: 'Campaña principal' },
-        { screen_id: 'screen-2', name: 'One-shot' }
-      ],
-      panels: [
-        { panel_id: 'panel-1', screen_id: 'screen-1', name: 'Panel 1', is_archive: 0 },
-        { panel_id: 'panel-2', screen_id: 'screen-1', name: 'Encuentro', is_archive: 0 },
-        { panel_id: 'panel-archive-1', screen_id: 'screen-1', name: 'Archivo', is_archive: 1 },
-        { panel_id: 'panel-3', screen_id: 'screen-2', name: 'Panel 1', is_archive: 0 },
-        { panel_id: 'panel-archive-2', screen_id: 'screen-2', name: 'Archivo', is_archive: 1 }
-      ],
-      modules: [
-        { module_id: 'mod-1', panel_id: 'panel-1', module_type: 'notes', title: 'Notas rápidas', x: 24, y: 24, width: 320, height: 220, is_archived: 0 },
-        { module_id: 'mod-2', panel_id: 'panel-1', module_type: 'dice_roller', title: 'Dados', x: 364, y: 24, width: 340, height: 250, is_archived: 0 },
-        { module_id: 'mod-3', panel_id: 'panel-2', module_type: 'encounters', title: 'Encuentro actual', x: 24, y: 24, width: 560, height: 360, is_archived: 0 },
-        { module_id: 'mod-4', panel_id: 'panel-archive-1', module_type: 'image_viewer', title: 'Mapa archivado', x: 24, y: 24, width: 360, height: 240, is_archived: 1 }
-      ],
+      screens: [],
+      panels: [],
+      modules: [],
+      moduleDefinitions: [],
       activeCharacters: [
         { id: 'ch-1', name: 'Aelar', raceClass: 'Elfo · Mago 5', stats: 'CA 14 · HP 27 · PP 15', absent: 0 },
         { id: 'ch-2', name: 'Branna', raceClass: 'Humana · Guerrera 4', stats: 'CA 17 · HP 41 · PP 11', absent: 0 },
@@ -840,25 +818,89 @@
     const characterContextToggleBtnEl = document.getElementById('characterContextToggleBtn');
     let contextMenuCharacter = null;
 
+    function chooseInitialPanelId(screenId) {
+      const panels = appState.panels.filter((p) => p.screen_id === screenId);
+      const firstNonArchive = panels.find((p) => !p.is_archive);
+      return (firstNonArchive || panels.find((p) => p.is_archive) || null)?.panel_id ?? null;
+    }
+
+    async function loadBootstrapData() {
+      try {
+        const response = await fetch('api/bootstrap.php', { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const payload = await response.json();
+
+        appState.screens = Array.isArray(payload.screens)
+          ? payload.screens.map((screen) => ({
+              screen_id: String(screen.id),
+              name: screen.name || `Pantalla ${screen.id}`
+            }))
+          : [];
+
+        appState.panels = Array.isArray(payload.panels)
+          ? payload.panels.map((panel) => ({
+              panel_id: String(panel.id),
+              screen_id: String(panel.screen_id),
+              name: panel.name || `Panel ${panel.id}`,
+              is_archive: Number(panel.is_archive) ? 1 : 0
+            }))
+          : [];
+
+        appState.modules = Array.isArray(payload.modules)
+          ? payload.modules.map((mod) => ({
+              module_id: String(mod.id),
+              panel_id: String(mod.panel_id),
+              module_type: mod.type,
+              title: mod.title || mod.type,
+              x: Number(mod.position_x) || 0,
+              y: Number(mod.position_y) || 0,
+              width: Number(mod.width) || 320,
+              height: Number(mod.height) || 220,
+              is_archived: Number(mod.is_archived) ? 1 : 0
+            }))
+          : [];
+
+        appState.moduleDefinitions = Array.isArray(payload.module_definitions)
+          ? payload.module_definitions.map((def) => ({
+              id: def.code,
+              code: def.code,
+              name: def.name || def.code,
+              html: def.html_path || '',
+              html_path: def.html_path || '',
+              defaultW: Number(def.default_width) || 320,
+              defaultH: Number(def.default_height) || 220,
+              is_native: Number(def.is_native) ? 1 : 0
+            }))
+          : [];
+
+        appState.activeScreenId = appState.screens[0]?.screen_id ?? null;
+        appState.activePanelId = appState.activeScreenId
+          ? chooseInitialPanelId(appState.activeScreenId)
+          : null;
+      } catch (error) {
+        console.error('Failed to load bootstrap data from api/bootstrap.php', error);
+      }
+    }
+
     function getPanelsForActiveScreen() {
-      return demoState.panels.filter(p => p.screen_id === demoState.activeScreenId);
+      return appState.panels.filter((p) => p.screen_id === appState.activeScreenId);
     }
 
     function getActivePanel() {
-      return demoState.panels.find(p => p.panel_id === demoState.activePanelId) || null;
+      return appState.panels.find((p) => p.panel_id === appState.activePanelId) || null;
     }
 
     function getModulesForActivePanel() {
-      return demoState.modules.filter(m => m.panel_id === demoState.activePanelId);
+      return appState.modules.filter((m) => m.panel_id === appState.activePanelId);
     }
 
     function getModuleDef(type) {
-      return MODULE_LIBRARY.find(m => m.id === type) || null;
+      return appState.moduleDefinitions.find((m) => m.id === type) || null;
     }
 
     function snap(value) {
-      if (!demoState.gridSize) return Math.round(value);
-      return Math.round(value / demoState.gridSize) * demoState.gridSize;
+      if (!appState.gridSize) return Math.round(value);
+      return Math.round(value / appState.gridSize) * appState.gridSize;
     }
 
     function applyModuleRect(el, mod) {
@@ -898,7 +940,7 @@
         const onMove = (e) => {
           mod.x = e.clientX - workspaceRect.left - startOffsetX;
           mod.y = e.clientY - workspaceRect.top - startOffsetY;
-          if (demoState.gridSize) {
+          if (appState.gridSize) {
             mod.x = snap(mod.x);
             mod.y = snap(mod.y);
           }
@@ -934,7 +976,7 @@
         const onMove = (e) => {
           mod.width = Math.max(180, startW + (e.clientX - startX));
           mod.height = Math.max(140, startH + (e.clientY - startY));
-          if (demoState.gridSize) {
+          if (appState.gridSize) {
             mod.width = snap(mod.width);
             mod.height = snap(mod.height);
           }
@@ -958,7 +1000,7 @@
       const activePanel = getActivePanel();
       if (!activePanel || activePanel.is_archive) return;
       const archivePanel = getPanelsForActiveScreen().find(p => p.is_archive);
-      const mod = demoState.modules.find(m => m.module_id === moduleId);
+      const mod = appState.modules.find(m => m.module_id === moduleId);
       if (!archivePanel || !mod) return;
       mod.panel_id = archivePanel.panel_id;
       mod.is_archived = 1;
@@ -966,16 +1008,16 @@
     }
 
     function deleteModule(moduleId) {
-      const idx = demoState.modules.findIndex(m => m.module_id === moduleId);
+      const idx = appState.modules.findIndex(m => m.module_id === moduleId);
       if (idx >= 0) {
-        demoState.modules.splice(idx, 1);
+        appState.modules.splice(idx, 1);
         render();
       }
     }
 
     function openModuleDialog() {
       moduleTypeEl.innerHTML = '';
-      MODULE_LIBRARY.forEach((item) => {
+      appState.moduleDefinitions.forEach((item) => {
         const option = document.createElement('option');
         option.value = item.id;
         option.textContent = item.name;
@@ -1001,14 +1043,14 @@
         height: def.defaultH,
         is_archived: panel.is_archive ? 1 : 0
       };
-      demoState.modules.push(mod);
+      appState.modules.push(mod);
       render();
     }
 
     function autoArrange() {
       const modules = getModulesForActivePanel();
       if (!modules.length) return;
-      const gap = demoState.gridSize || 16;
+      const gap = appState.gridSize || 16;
       const width = workspaceEl.clientWidth;
       let x = gap;
       let y = gap;
@@ -1020,8 +1062,8 @@
           y += rowH + gap;
           rowH = 0;
         }
-        mod.x = demoState.gridSize ? snap(x) : x;
-        mod.y = demoState.gridSize ? snap(y) : y;
+        mod.x = appState.gridSize ? snap(x) : x;
+        mod.y = appState.gridSize ? snap(y) : y;
         clampModuleToWorkspace(mod);
         x += mod.width + gap;
         rowH = Math.max(rowH, mod.height);
@@ -1032,11 +1074,11 @@
 
     function renderScreenSelect() {
       screenSelectEl.innerHTML = '';
-      demoState.screens.forEach((screen) => {
+      appState.screens.forEach((screen) => {
         const option = document.createElement('option');
         option.value = screen.screen_id;
         option.textContent = screen.name;
-        option.selected = screen.screen_id === demoState.activeScreenId;
+        option.selected = screen.screen_id === appState.activeScreenId;
         screenSelectEl.appendChild(option);
       });
     }
@@ -1046,10 +1088,10 @@
       const panels = getPanelsForActiveScreen();
       panels.forEach((panel) => {
         const btn = document.createElement('button');
-        btn.className = `tab ${panel.panel_id === demoState.activePanelId ? 'active' : ''} ${panel.is_archive ? 'system' : ''}`;
+        btn.className = `tab ${panel.panel_id === appState.activePanelId ? 'active' : ''} ${panel.is_archive ? 'system' : ''}`;
         btn.innerHTML = `<span class="tab-label">${panel.name}</span>`;
         btn.addEventListener('click', () => {
-          demoState.activePanelId = panel.panel_id;
+          appState.activePanelId = panel.panel_id;
           render();
         });
 
@@ -1066,7 +1108,7 @@
     }
 
     function startPanelRename(panelId, tabEl) {
-      const panel = demoState.panels.find((p) => p.panel_id === panelId);
+      const panel = appState.panels.find((p) => p.panel_id === panelId);
       if (!panel) return;
 
       const currentLabel = tabEl.querySelector('.tab-label');
@@ -1098,12 +1140,12 @@
 
     function renderSidebar() {
       sidebarListEl.innerHTML = '';
-      demoState.activeCharacters
+      appState.activeCharacters
         .slice()
         .sort((a, b) => Number(a.absent) - Number(b.absent))
         .forEach((ch) => {
           const card = document.createElement('div');
-          card.className = `sidebar-card ${demoState.sidebarMode} ${ch.absent ? 'absent' : ''}`;
+          card.className = `sidebar-card ${appState.sidebarMode} ${ch.absent ? 'absent' : ''}`;
           card.draggable = true;
           card.innerHTML = `
             <div class="portrait"></div>
@@ -1119,11 +1161,11 @@
           card.querySelectorAll('.presence-toggle, .status-pill, .character-status-pill').forEach((el) => el.remove());
           card.addEventListener('contextmenu', (event) => openCharacterContextMenu(event, ch));
 
-          if (demoState.sidebarMode === 'compact') {
+          if (appState.sidebarMode === 'compact') {
             card.querySelector('.subline').style.display = 'none';
             card.querySelector('.statsline').style.display = 'none';
           }
-          if (demoState.sidebarMode === 'medium') {
+          if (appState.sidebarMode === 'medium') {
             card.querySelector('.statsline').style.display = 'none';
           }
           sidebarListEl.appendChild(card);
@@ -1136,11 +1178,11 @@
       emptyStateEl.style.display = modules.length ? 'none' : 'grid';
       screenInfoChipEl.textContent = `${modules.length} módulo${modules.length === 1 ? '' : 's'}`;
 
-      if (demoState.gridSize === 0) {
+      if (appState.gridSize === 0) {
         workspaceEl.classList.add('grid-off');
       } else {
         workspaceEl.classList.remove('grid-off');
-        workspaceEl.style.setProperty('--grid-size', `${demoState.gridSize}px`);
+        workspaceEl.style.setProperty('--grid-size', `${appState.gridSize}px`);
       }
 
       modules.forEach((mod, index) => {
@@ -1157,7 +1199,7 @@
             </div>
           </div>
           <div class="module-body">
-            <iframe class="module-frame" src="${def ? def.html : 'about:blank'}?module_id=${encodeURIComponent(mod.module_id)}" title="${mod.title}"></iframe>
+            <iframe class="module-frame" src="${def && def.html_path ? def.html_path : 'about:blank'}?module_id=${encodeURIComponent(mod.module_id)}" title="${mod.title}"></iframe>
           </div>
           <div class="resize-handle" title="Cambiar tamaño"></div>
         `;
@@ -1176,7 +1218,7 @@
       renderPanelTabs();
       renderSidebar();
       renderWorkspace();
-      gridSizeEl.value = String(demoState.gridSize);
+      gridSizeEl.value = String(appState.gridSize);
     }
 
     function closeMenus() {
@@ -1216,70 +1258,70 @@
     document.getElementById('autoArrangeBtn').addEventListener('click', autoArrange);
 
     document.getElementById('addPanelBtn').addEventListener('click', () => {
-      const next = demoState.panels.filter(p => p.screen_id === demoState.activeScreenId && !p.is_archive).length + 1;
+      if (!appState.activeScreenId) return;
+      const next = appState.panels.filter(p => p.screen_id === appState.activeScreenId && !p.is_archive).length + 1;
       const panel = {
         panel_id: `panel-${crypto.randomUUID()}`,
-        screen_id: demoState.activeScreenId,
+        screen_id: appState.activeScreenId,
         name: `Panel ${next}`,
         is_archive: 0
       };
-      const archive = demoState.panels.find(p => p.screen_id === demoState.activeScreenId && p.is_archive);
-      const idx = archive ? demoState.panels.indexOf(archive) : demoState.panels.length;
-      demoState.panels.splice(idx, 0, panel);
-      demoState.activePanelId = panel.panel_id;
+      const archive = appState.panels.find(p => p.screen_id === appState.activeScreenId && p.is_archive);
+      const idx = archive ? appState.panels.indexOf(archive) : appState.panels.length;
+      appState.panels.splice(idx, 0, panel);
+      appState.activePanelId = panel.panel_id;
       render();
     });
 
     document.getElementById('archiveTabBtn').addEventListener('click', () => {
-      const archive = demoState.panels.find(p => p.screen_id === demoState.activeScreenId && p.is_archive);
+      const archive = appState.panels.find(p => p.screen_id === appState.activeScreenId && p.is_archive);
       if (!archive) return;
-      demoState.activePanelId = archive.panel_id;
+      appState.activePanelId = archive.panel_id;
       render();
     });
 
     document.getElementById('newScreenBtn').addEventListener('click', () => {
-      const n = demoState.screens.length + 1;
+      const n = appState.screens.length + 1;
       const screenId = `screen-${crypto.randomUUID()}`;
-      demoState.screens.push({ screen_id: screenId, name: `Pantalla ${n}` });
-      demoState.panels.push({ panel_id: `panel-${crypto.randomUUID()}`, screen_id: screenId, name: 'Panel 1', is_archive: 0 });
+      appState.screens.push({ screen_id: screenId, name: `Pantalla ${n}` });
+      appState.panels.push({ panel_id: `panel-${crypto.randomUUID()}`, screen_id: screenId, name: 'Panel 1', is_archive: 0 });
       const archiveId = `panel-${crypto.randomUUID()}`;
-      demoState.panels.push({ panel_id: archiveId, screen_id: screenId, name: 'Archivo', is_archive: 1 });
-      demoState.activeScreenId = screenId;
-      demoState.activePanelId = demoState.panels.find(p => p.screen_id === screenId && !p.is_archive).panel_id;
+      appState.panels.push({ panel_id: archiveId, screen_id: screenId, name: 'Archivo', is_archive: 1 });
+      appState.activeScreenId = screenId;
+      appState.activePanelId = chooseInitialPanelId(screenId);
       render();
     });
 
     document.getElementById('deleteScreenBtn').addEventListener('click', () => {
-      if (demoState.screens.length <= 1) return;
-      const currentId = demoState.activeScreenId;
-      demoState.modules = demoState.modules.filter(m => !demoState.panels.some(p => p.panel_id === m.panel_id && p.screen_id === currentId));
-      demoState.panels = demoState.panels.filter(p => p.screen_id !== currentId);
-      demoState.screens = demoState.screens.filter(s => s.screen_id !== currentId);
-      demoState.activeScreenId = demoState.screens[0].screen_id;
-      demoState.activePanelId = demoState.panels.find(p => p.screen_id === demoState.activeScreenId && !p.is_archive).panel_id;
+      if (appState.screens.length <= 1 || !appState.activeScreenId) return;
+      const currentId = appState.activeScreenId;
+      appState.modules = appState.modules.filter(m => !appState.panels.some(p => p.panel_id === m.panel_id && p.screen_id === currentId));
+      appState.panels = appState.panels.filter(p => p.screen_id !== currentId);
+      appState.screens = appState.screens.filter(s => s.screen_id !== currentId);
+      appState.activeScreenId = appState.screens[0]?.screen_id ?? null;
+      appState.activePanelId = appState.activeScreenId ? chooseInitialPanelId(appState.activeScreenId) : null;
       render();
     });
 
     screenSelectEl.addEventListener('change', () => {
-      demoState.activeScreenId = screenSelectEl.value;
-      const firstPanel = demoState.panels.find(p => p.screen_id === demoState.activeScreenId && !p.is_archive);
-      if (firstPanel) demoState.activePanelId = firstPanel.panel_id;
+      appState.activeScreenId = screenSelectEl.value;
+      appState.activePanelId = chooseInitialPanelId(appState.activeScreenId);
       render();
     });
 
     gridSizeEl.addEventListener('change', () => {
-      demoState.gridSize = Number(gridSizeEl.value);
+      appState.gridSize = Number(gridSizeEl.value);
       renderWorkspace();
     });
 
     document.getElementById('toggleSidebarSizeBtn').addEventListener('click', () => {
-      demoState.sidebarMode = demoState.sidebarMode === 'compact'
+      appState.sidebarMode = appState.sidebarMode === 'compact'
         ? 'medium'
-        : demoState.sidebarMode === 'medium'
+        : appState.sidebarMode === 'medium'
           ? 'large'
           : 'compact';
 
-      document.documentElement.style.setProperty('--sidebar-w', demoState.sidebarMode === 'compact' ? '100px' : demoState.sidebarMode === 'medium' ? '220px' : '290px');
+      document.documentElement.style.setProperty('--sidebar-w', appState.sidebarMode === 'compact' ? '100px' : appState.sidebarMode === 'medium' ? '220px' : '290px');
       renderSidebar();
     });
 
@@ -1320,7 +1362,7 @@
       renderWorkspace();
     });
 
-    render();
+    loadBootstrapData().finally(render);
   </script>
 </body>
 </html>
