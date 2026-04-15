@@ -1094,12 +1094,6 @@
           `;
           card.addEventListener('contextmenu', (event) => openCharacterContextMenu(event, ch));
 
-          card.querySelector('.presence-toggle').addEventListener('click', (event) => {
-            event.stopPropagation();
-            ch.absent = ch.absent ? 0 : 1;
-            renderSidebar();
-          });
-
           if (demoState.sidebarMode === 'compact') {
             card.querySelector('.subline').style.display = 'none';
             card.querySelector('.statsline').style.display = 'none';
@@ -1174,9 +1168,17 @@
       event.preventDefault();
       contextMenuCharacter = character;
       characterContextToggleBtnEl.textContent = character.absent ? 'Marcar como Presente' : 'Marcar como Ausente';
-      characterContextMenuEl.style.left = `${event.clientX}px`;
-      characterContextMenuEl.style.top = `${event.clientY}px`;
       characterContextMenuEl.hidden = false;
+
+      const menuWidth = characterContextMenuEl.offsetWidth;
+      const menuHeight = characterContextMenuEl.offsetHeight;
+      const maxLeft = Math.max(0, window.innerWidth - menuWidth);
+      const maxTop = Math.max(0, window.innerHeight - menuHeight);
+      const clampedLeft = Math.min(Math.max(0, event.clientX), maxLeft);
+      const clampedTop = Math.min(Math.max(0, event.clientY), maxTop);
+
+      characterContextMenuEl.style.left = `${clampedLeft}px`;
+      characterContextMenuEl.style.top = `${clampedTop}px`;
     }
 
     document.getElementById('addModuleBtn').addEventListener('click', openModuleDialog);
