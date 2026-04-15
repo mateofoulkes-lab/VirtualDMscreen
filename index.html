@@ -362,6 +362,31 @@
       gap: 3px;
     }
 
+    .sidebar-headline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .presence-toggle {
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      border-radius: 999px;
+      font-size: 10px;
+      line-height: 1;
+      padding: 4px 7px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .presence-toggle:hover {
+      border-color: rgba(122,162,255,.52);
+      color: var(--text);
+    }
+
     .name {
       font-size: 12px;
       font-weight: 700;
@@ -1059,12 +1084,21 @@
           card.innerHTML = `
             <div class="portrait"></div>
             <div class="sidebar-meta">
-              <div class="name">${ch.name}</div>
+              <div class="sidebar-headline">
+                <div class="name">${ch.name}</div>
+                <button class="presence-toggle" type="button">${ch.absent ? 'Ausente' : 'Activo'}</button>
+              </div>
               <div class="subline">${ch.raceClass}</div>
               <div class="statsline">${ch.stats}</div>
             </div>
           `;
           card.addEventListener('contextmenu', (event) => openCharacterContextMenu(event, ch));
+
+          card.querySelector('.presence-toggle').addEventListener('click', (event) => {
+            event.stopPropagation();
+            ch.absent = ch.absent ? 0 : 1;
+            renderSidebar();
+          });
 
           if (demoState.sidebarMode === 'compact') {
             card.querySelector('.subline').style.display = 'none';
