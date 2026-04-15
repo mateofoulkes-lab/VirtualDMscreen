@@ -23,9 +23,16 @@ $modules = $pdo->query(
      ORDER BY panel_id ASC, z_index ASC, id ASC'
 )->fetchAll(PDO::FETCH_ASSOC);
 
+$moduleDefinitions = $pdo->query(
+    'SELECT id, code, name, html_path, default_width, default_height, is_native, created_at, updated_at
+     FROM module_definitions
+     ORDER BY name ASC'
+)->fetchAll(PDO::FETCH_ASSOC);
+
 header('Content-Type: application/json; charset=utf-8');
 echo json_encode([
     'screens' => $screens,
     'panels' => $panels,
     'modules' => $modules,
+    'module_definitions' => $moduleDefinitions,
 ]);

@@ -47,6 +47,20 @@ function initializeDatabase(PDO $pdo): void
         )'
     );
 
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS module_definitions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            html_path TEXT NOT NULL,
+            default_width INTEGER NOT NULL,
+            default_height INTEGER NOT NULL,
+            is_native INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT,
+            updated_at TEXT
+        )'
+    );
+
     $screensCount = (int) $pdo->query('SELECT COUNT(*) FROM screens')->fetchColumn();
     if ($screensCount === 0) {
         $now = date('c');
@@ -80,6 +94,89 @@ function initializeDatabase(PDO $pdo): void
             ':name' => 'Archivo',
             ':sort_order' => 999,
             ':is_archive' => 1,
+            ':created_at' => $now,
+            ':updated_at' => $now,
+        ]);
+    }
+
+    $moduleDefinitions = [
+        [
+            'code' => 'encounters',
+            'name' => 'Encuentros',
+            'html_path' => 'modules/encounters/index.html',
+            'default_width' => 520,
+            'default_height' => 340,
+            'is_native' => 1,
+        ],
+        [
+            'code' => 'dice_roller',
+            'name' => 'Tirador de dados',
+            'html_path' => 'modules/dice-roller/index.html',
+            'default_width' => 360,
+            'default_height' => 260,
+            'is_native' => 1,
+        ],
+        [
+            'code' => 'notes',
+            'name' => 'Notas',
+            'html_path' => 'modules/notes/index.html',
+            'default_width' => 340,
+            'default_height' => 240,
+            'is_native' => 1,
+        ],
+        [
+            'code' => 'image_viewer',
+            'name' => 'Imagen',
+            'html_path' => 'modules/image-viewer/index.html',
+            'default_width' => 360,
+            'default_height' => 260,
+            'is_native' => 1,
+        ],
+        [
+            'code' => 'name_generator_quick',
+            'name' => 'Nombres rápidos',
+            'html_path' => 'modules/name-generator-quick/index.html',
+            'default_width' => 360,
+            'default_height' => 260,
+            'is_native' => 1,
+        ],
+        [
+            'code' => 'character_editor',
+            'name' => 'Editor de personajes',
+            'html_path' => 'modules/character-editor/index.html',
+            'default_width' => 520,
+            'default_height' => 420,
+            'is_native' => 1,
+        ],
+    ];
+
+    $insertDefinition = $pdo->prepare(
+        'INSERT INTO module_definitions
+         (code, name, html_path, default_width, default_height, is_native, created_at, updated_at)
+         VALUES
+         (:code, :name, :html_path, :default_width, :default_height, :is_native, :created_at, :updated_at)'
+    );
+
+    $findDefinition = $pdo->prepare(
+        'SELECT id FROM module_definitions WHERE code = :code LIMIT 1'
+    );
+
+    foreach ($moduleDefinitions as $definition) {
+        $findDefinition->execute([':code' => $definition['code']]);
+        $existingId = $findDefinition->fetchColumn();
+
+        if ($existingId !== false) {
+            continue;
+        }
+
+        $now = date('c');
+        $insertDefinition->execute([
+            ':code' => $definition['code'],
+            ':name' => $definition['name'],
+            ':html_path' => $definition['html_path'],
+            ':default_width' => $definition['default_width'],
+            ':default_height' => $definition['default_height'],
+            ':is_native' => $definition['is_native'],
             ':created_at' => $now,
             ':updated_at' => $now,
         ]);
