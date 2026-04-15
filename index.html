@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Virtual DM Screen Shell Base</title>
+  <style>
+    :root {
+      --bg-0: #070b14;
+      --bg-1: #0b1020;
+      --bg-2: #0f1730;
+      --panel-1: #121a2f;
+      --panel-2: #18223d;
+      --panel-3: #223158;
+      --panel-4: #2b3d6b;
+      --text: #e8edf8;
+      --muted: #9fb0d3;
+      --accent: #7aa2ff;
+      --accent-2: #93c5fd;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --success: #22c55e;
+      --shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+      --topbar-h: 46px;
+      --subbar-h: 40px;
+      --sidebar-w: 100px;
+      --grid-size: 24px;
+      --module-header-h: 34px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(122, 162, 255, 0.10), transparent 28%),
+        linear-gradient(180deg, #0b1020, #090d18 55%, #070a12);
+    }
+
+    button, input, select, textarea { font: inherit; }
+
+    .app {
+      height: 100%;
+      display: grid;
+      grid-template-rows: var(--topbar-h) var(--subbar-h) 1fr;
+      gap: 8px;
+      padding: 8px;
+    }
+
+    .chrome-bar {
+      display: grid;
+      align-items: center;
+      gap: 8px;
+      min-height: 0;
+      height: 100%;
+      background: rgba(18, 26, 47, 0.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: 4px 8px;
+      overflow: hidden;
+    }
+
+    .topbar {
+      grid-template-columns: auto minmax(220px, 1fr) auto auto auto auto auto;
+    }
+
+    .subbar {
+      grid-template-columns: 1fr auto auto auto;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 8px;
+      min-width: 0;
+      white-space: nowrap;
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+
+    .brand-mark {
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(122,162,255,.35), rgba(122,162,255,.12));
+      border: 1px solid rgba(122,162,255,.42);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+      flex: 0 0 auto;
+    }
+
+    .screen-switcher,
+    .toolbar-group,
+    .status-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+    }
+
+    .toolbar-group {
+      background: var(--panel-2);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 12px;
+      padding: 3px;
+    }
+
+    .toolbar-group label {
+      color: var(--muted);
+      font-size: 12px;
+      padding-left: 6px;
+      line-height: 1;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      overflow-x: auto;
+      overflow-y: hidden;
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+      scrollbar-width: thin;
+      padding: 0;
+    }
+
+    .tab {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,.05);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 0 10px;
+      cursor: pointer;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 0;
+      height: 30px;
+      line-height: 1;
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+      flex: 0 0 auto;
+    }
+
+    .tab:hover,
+    .btn:hover,
+    .icon-btn:hover,
+    .sidebar-card:hover { transform: translateY(-1px); }
+
+    .tab.active {
+      background: linear-gradient(180deg, rgba(122,162,255,.28), rgba(122,162,255,.12));
+      border-color: rgba(122,162,255,.52);
+    }
+
+    .tab.system {
+      border-style: dashed;
+      color: var(--muted);
+    }
+
+    .tab-label {
+      display: inline-block;
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tab-edit-input {
+      width: 140px;
+      height: 26px;
+      min-height: 0;
+      border-radius: 9px;
+      padding: 0 8px;
+      border: 1px solid rgba(122,162,255,.35);
+      background: rgba(11,16,32,.95);
+      color: var(--text);
+      outline: none;
+    }
+
+    .btn,
+    .icon-btn,
+    .chip,
+    select,
+    input[type="text"] {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,.08);
+      background: var(--panel-2);
+      color: var(--text);
+      outline: none;
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+      min-height: 0;
+    }
+
+    .btn {
+      border-radius: 12px;
+      padding: 0 11px;
+      cursor: pointer;
+      height: 32px;
+      line-height: 1;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+
+    .btn.primary {
+      background: linear-gradient(180deg, rgba(122,162,255,.34), rgba(122,162,255,.14));
+      border-color: rgba(122,162,255,.48);
+    }
+
+    .btn.danger-soft:hover {
+      background: rgba(239,68,68,.14);
+      border-color: rgba(239,68,68,.45);
+    }
+
+    .icon-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,.05);
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+
+    .chip {
+      border-radius: 999px;
+      padding: 0 9px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+      flex: 0 0 auto;
+    }
+
+    select,
+    input[type="text"] {
+      border-radius: 10px;
+      padding: 0 10px;
+      height: 30px;
+    }
+
+    .shell {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1fr var(--sidebar-w);
+      gap: 8px;
+    }
+
+    .main-stage,
+    .sidebar {
+      min-height: 0;
+      background: rgba(18, 26, 47, 0.64);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+
+    .main-stage {
+      display: grid;
+      grid-template-rows: 1fr;
+    }
+
+    .workspace {
+      position: relative;
+      min-height: 0;
+      background-color: #0d1426;
+      background-image:
+        linear-gradient(to right, rgba(255,255,255,.045) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,.045) 1px, transparent 1px);
+      background-size: var(--grid-size) var(--grid-size);
+    }
+
+    .workspace.grid-off { background-image: none; }
+
+    .sidebar {
+      display: grid;
+      grid-template-rows: 36px 1fr;
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 6px 8px;
+      background: linear-gradient(180deg, rgba(34,49,88,.95), rgba(24,34,61,.95));
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .sidebar-list {
+      padding: 8px;
+      overflow: auto;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .sidebar-card {
+      display: grid;
+      gap: 6px;
+      padding: 7px;
+      border-radius: 14px;
+      background: rgba(11,16,32,.94);
+      border: 1px solid rgba(255,255,255,.07);
+      cursor: grab;
+      transition: transform .15s ease, border-color .15s ease, opacity .15s ease;
+    }
+
+    .sidebar-card.absent {
+      opacity: .46;
+      filter: grayscale(.2);
+    }
+
+    .sidebar-card.compact {
+      justify-items: center;
+      text-align: center;
+    }
+
+    .portrait {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 12px;
+      background:
+        linear-gradient(45deg, #1f2937 25%, transparent 25%),
+        linear-gradient(-45deg, #1f2937 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #1f2937 75%),
+        linear-gradient(-45deg, transparent 75%, #1f2937 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+      border: 1px solid rgba(255,255,255,.05);
+      overflow: hidden;
+    }
+
+    .portrait img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .sidebar-meta {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+
+    .name {
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.15;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .subline,
+    .statsline {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.15;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sidebar-card.medium {
+      grid-template-columns: 44px 1fr;
+      align-items: center;
+    }
+
+    .sidebar-card.medium .portrait {
+      width: 44px;
+      height: 44px;
+    }
+
+    .sidebar-card.large {
+      grid-template-columns: 48px 1fr;
+      align-items: start;
+    }
+
+    .sidebar-card.large .portrait {
+      width: 48px;
+      height: 48px;
+    }
+
+    .module {
+      position: absolute;
+      min-width: 180px;
+      min-height: 140px;
+      display: grid;
+      grid-template-rows: var(--module-header-h) 1fr;
+      background: rgba(11, 16, 32, 0.94);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 14px 30px rgba(0,0,0,.4);
+    }
+
+    .module.dragging {
+      opacity: .93;
+      box-shadow: 0 18px 42px rgba(0,0,0,.52);
+    }
+
+    .module-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 8px 6px 10px;
+      background: linear-gradient(180deg, rgba(34,49,88,.95), rgba(24,34,61,.95));
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      cursor: move;
+      user-select: none;
+    }
+
+    .module-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .15px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .module-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .module-body {
+      position: relative;
+      background: #fff;
+    }
+
+    .module-frame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #fff;
+    }
+
+    .resize-handle {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 16px;
+      height: 16px;
+      cursor: nwse-resize;
+      background:
+        linear-gradient(135deg, transparent 0 50%, rgba(122,162,255,.6) 50% 60%, transparent 60% 70%, rgba(122,162,255,.6) 70% 80%, transparent 80% 100%);
+      opacity: .9;
+      z-index: 2;
+    }
+
+    .empty-state {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--muted);
+      padding: 20px;
+      pointer-events: none;
+    }
+
+    .empty-card {
+      max-width: 460px;
+      background: rgba(17, 24, 39, 0.55);
+      border: 1px dashed rgba(255,255,255,.15);
+      border-radius: 20px;
+      padding: 22px;
+    }
+
+    .empty-card h2 {
+      margin: 0 0 6px;
+      font-size: 22px;
+    }
+
+    .empty-card p {
+      margin: 0;
+      line-height: 1.45;
+    }
+
+    dialog {
+      width: min(460px, calc(100vw - 24px));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      background: rgba(14, 19, 35, .98);
+      color: var(--text);
+      box-shadow: var(--shadow);
+      padding: 0;
+    }
+
+    dialog::backdrop {
+      background: rgba(0,0,0,.52);
+      backdrop-filter: blur(4px);
+    }
+
+    .dialog-inner { padding: 18px; }
+    .dialog-inner h3 { margin: 0 0 8px; }
+    .dialog-inner p { margin: 0 0 14px; color: var(--muted); }
+    .field { display: grid; gap: 7px; margin-bottom: 14px; }
+    .field label { font-size: 13px; color: var(--muted); }
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 0 18px 18px;
+    }
+
+    .menu-anchor { position: relative; }
+
+    .menu-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      min-width: 210px;
+      background: rgba(14,19,35,.985);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 8px;
+      display: none;
+      z-index: 9999;
+    }
+
+    .menu-dropdown.open {
+      display: grid;
+      gap: 6px;
+    }
+
+    .menu-item {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,.06);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 9px 11px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .menu-item:hover {
+      background: var(--panel-3);
+    }
+
+    @media (max-width: 1240px) {
+      .topbar {
+        grid-template-columns: auto 1fr auto auto;
+      }
+
+      .topbar .toolbar-group.compact-hide {
+        display: none;
+      }
+
+      .subbar {
+        grid-template-columns: 1fr auto auto;
+      }
+    }
+
+    @media (max-width: 960px) {
+      .app {
+        grid-template-rows: auto auto 1fr;
+      }
+
+      .topbar,
+      .subbar {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="chrome-bar topbar">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <span>Virtual DM Screen</span>
+      </div>
+
+      <div class="screen-switcher toolbar-group">
+        <label for="screenSelect">Pantalla</label>
+        <select id="screenSelect"></select>
+        <button class="icon-btn" id="newScreenBtn" title="Nueva pantalla">＋</button>
+        <button class="icon-btn danger-soft" id="deleteScreenBtn" title="Eliminar pantalla">🗑</button>
+      </div>
+
+      <div class="toolbar-group compact-hide menu-anchor">
+        <button class="btn" id="screenMenuBtn">Pantalla ▾</button>
+        <div class="menu-dropdown" id="screenMenu">
+          <button class="menu-item" data-action="rename-screen">Renombrar pantalla</button>
+          <button class="menu-item" data-action="duplicate-screen">Duplicar pantalla</button>
+          <button class="menu-item" data-action="screen-settings">Opciones de pantalla</button>
+        </div>
+      </div>
+
+      <div class="toolbar-group compact-hide menu-anchor">
+        <button class="btn" id="appMenuBtn">App ▾</button>
+        <div class="menu-dropdown" id="appMenu">
+          <button class="menu-item" data-action="open-screen-manager">Administrador de pantallas</button>
+          <button class="menu-item" data-action="open-campaigns">Campañas</button>
+          <button class="menu-item" data-action="open-module-library">Módulos disponibles</button>
+          <button class="menu-item" data-action="backup-export">Exportar respaldo</button>
+          <button class="menu-item" data-action="backup-import">Importar respaldo</button>
+        </div>
+      </div>
+
+      <div class="toolbar-group">
+        <label for="gridSize">Grilla</label>
+        <select id="gridSize">
+          <option value="0" selected>Off</option>
+          <option value="8">8</option>
+          <option value="12">12</option>
+          <option value="16">16</option>
+          <option value="24">24</option>
+          <option value="32">32</option>
+          <option value="48">48</option>
+          <option value="64">64</option>
+          <option value="96">96</option>
+        </select>
+      </div>
+
+      <button class="btn" id="autoArrangeBtn">Ordenar</button>
+      <button class="btn primary" id="addModuleBtn">+ Módulo</button>
+    </div>
+
+    <div class="chrome-bar subbar">
+      <div class="tabs" id="panelTabs" title="Doble click para renombrar panel"></div>
+
+      <div class="status-group toolbar-group">
+        <span class="chip" id="saveStatusChip">Autosave</span>
+        <span class="chip" id="screenInfoChip">0 módulos</span>
+      </div>
+
+      <button class="btn" id="addPanelBtn">+ Panel</button>
+      <button class="btn" id="archiveTabBtn">Archivo</button>
+    </div>
+
+    <div class="shell">
+      <div class="main-stage">
+        <div class="workspace grid-off" id="workspace"></div>
+        <div class="empty-state" id="emptyState">
+          <div class="empty-card">
+            <h2>Virtual DM Screen</h2>
+            <p>Agregá módulos a este panel o abrí el Archivo para restaurar elementos archivados.</p>
+          </div>
+        </div>
+      </div>
+
+      <aside class="sidebar" id="characterSidebar">
+        <div class="sidebar-header">
+          <span>Personajes activos</span>
+          <button class="icon-btn" id="toggleSidebarSizeBtn" title="Cambiar tamaño">⇄</button>
+        </div>
+        <div class="sidebar-list" id="sidebarList"></div>
+      </aside>
+    </div>
+  </div>
+
+  <dialog id="moduleDialog">
+    <div class="dialog-inner">
+      <h3>Agregar módulo</h3>
+      <p>Seleccioná el tipo de módulo que querés crear en el panel activo.</p>
+      <div class="field">
+        <label for="moduleType">Tipo de módulo</label>
+        <select id="moduleType"></select>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn" id="cancelModuleBtn">Cancelar</button>
+      <button class="btn primary" id="confirmModuleBtn">Agregar</button>
+    </div>
+  </dialog>
+
+  <script>
+    const MODULE_LIBRARY = [
+      { id: 'encounters', name: 'Encuentros', html: 'modules/encounters/index.html', defaultW: 520, defaultH: 340 },
+      { id: 'dice_roller', name: 'Tirador de dados', html: 'modules/dice-roller/index.html', defaultW: 360, defaultH: 260 },
+      { id: 'notes', name: 'Notas', html: 'modules/notes/index.html', defaultW: 340, defaultH: 240 },
+      { id: 'image_viewer', name: 'Imagen', html: 'modules/image-viewer/index.html', defaultW: 360, defaultH: 260 },
+      { id: 'name_generator_quick', name: 'Nombres rápidos', html: 'modules/name-generator-quick/index.html', defaultW: 360, defaultH: 260 },
+      { id: 'character_editor', name: 'Editor de personajes', html: 'modules/character-editor/index.html', defaultW: 520, defaultH: 420 }
+    ];
+
+    const demoState = {
+      activeScreenId: 'screen-1',
+      activePanelId: 'panel-1',
+      gridSize: 0,
+      sidebarMode: 'compact',
+      screens: [
+        { screen_id: 'screen-1', name: 'Campaña principal' },
+        { screen_id: 'screen-2', name: 'One-shot' }
+      ],
+      panels: [
+        { panel_id: 'panel-1', screen_id: 'screen-1', name: 'Panel 1', is_archive: 0 },
+        { panel_id: 'panel-2', screen_id: 'screen-1', name: 'Encuentro', is_archive: 0 },
+        { panel_id: 'panel-archive-1', screen_id: 'screen-1', name: 'Archivo', is_archive: 1 },
+        { panel_id: 'panel-3', screen_id: 'screen-2', name: 'Panel 1', is_archive: 0 },
+        { panel_id: 'panel-archive-2', screen_id: 'screen-2', name: 'Archivo', is_archive: 1 }
+      ],
+      modules: [
+        { module_id: 'mod-1', panel_id: 'panel-1', module_type: 'notes', title: 'Notas rápidas', x: 24, y: 24, width: 320, height: 220, is_archived: 0 },
+        { module_id: 'mod-2', panel_id: 'panel-1', module_type: 'dice_roller', title: 'Dados', x: 364, y: 24, width: 340, height: 250, is_archived: 0 },
+        { module_id: 'mod-3', panel_id: 'panel-2', module_type: 'encounters', title: 'Encuentro actual', x: 24, y: 24, width: 560, height: 360, is_archived: 0 },
+        { module_id: 'mod-4', panel_id: 'panel-archive-1', module_type: 'image_viewer', title: 'Mapa archivado', x: 24, y: 24, width: 360, height: 240, is_archived: 1 }
+      ],
+      activeCharacters: [
+        { id: 'ch-1', name: 'Aelar', raceClass: 'Elfo · Mago 5', stats: 'CA 14 · HP 27 · PP 15', absent: 0 },
+        { id: 'ch-2', name: 'Branna', raceClass: 'Humana · Guerrera 4', stats: 'CA 17 · HP 41 · PP 11', absent: 0 },
+        { id: 'ch-3', name: 'Dorrim', raceClass: 'Enano · Clérigo 4', stats: 'CA 18 · HP 35 · PP 14', absent: 1 }
+      ]
+    };
+
+    const workspaceEl = document.getElementById('workspace');
+    const emptyStateEl = document.getElementById('emptyState');
+    const screenSelectEl = document.getElementById('screenSelect');
+    const panelTabsEl = document.getElementById('panelTabs');
+    const sidebarListEl = document.getElementById('sidebarList');
+    const gridSizeEl = document.getElementById('gridSize');
+    const screenInfoChipEl = document.getElementById('screenInfoChip');
+    const moduleDialogEl = document.getElementById('moduleDialog');
+    const moduleTypeEl = document.getElementById('moduleType');
+    const appMenuBtnEl = document.getElementById('appMenuBtn');
+    const appMenuEl = document.getElementById('appMenu');
+    const screenMenuBtnEl = document.getElementById('screenMenuBtn');
+    const screenMenuEl = document.getElementById('screenMenu');
+
+    function getPanelsForActiveScreen() {
+      return demoState.panels.filter(p => p.screen_id === demoState.activeScreenId);
+    }
+
+    function getActivePanel() {
+      return demoState.panels.find(p => p.panel_id === demoState.activePanelId) || null;
+    }
+
+    function getModulesForActivePanel() {
+      return demoState.modules.filter(m => m.panel_id === demoState.activePanelId);
+    }
+
+    function getModuleDef(type) {
+      return MODULE_LIBRARY.find(m => m.id === type) || null;
+    }
+
+    function snap(value) {
+      if (!demoState.gridSize) return Math.round(value);
+      return Math.round(value / demoState.gridSize) * demoState.gridSize;
+    }
+
+    function applyModuleRect(el, mod) {
+      el.style.left = `${mod.x}px`;
+      el.style.top = `${mod.y}px`;
+      el.style.width = `${mod.width}px`;
+      el.style.height = `${mod.height}px`;
+    }
+
+    function clampModuleToWorkspace(mod) {
+      const maxX = Math.max(0, workspaceEl.clientWidth - mod.width);
+      const maxY = Math.max(0, workspaceEl.clientHeight - mod.height);
+      mod.x = Math.max(0, Math.min(mod.x, maxX));
+      mod.y = Math.max(0, Math.min(mod.y, maxY));
+    }
+
+    function bringToFront(el) {
+      const all = [...workspaceEl.querySelectorAll('.module')];
+      const next = all.reduce((max, item) => Math.max(max, Number(item.style.zIndex || 1)), 1) + 1;
+      el.style.zIndex = String(next);
+    }
+
+    function attachDrag(moduleEl, mod) {
+      const header = moduleEl.querySelector('.module-header');
+      header.addEventListener('pointerdown', (event) => {
+        if (event.target.closest('.module-actions')) return;
+        event.preventDefault();
+        moduleEl.classList.add('dragging');
+        bringToFront(moduleEl);
+
+        const rect = moduleEl.getBoundingClientRect();
+        const workspaceRect = workspaceEl.getBoundingClientRect();
+        const startOffsetX = event.clientX - rect.left;
+        const startOffsetY = event.clientY - rect.top;
+
+        const onMove = (e) => {
+          mod.x = e.clientX - workspaceRect.left - startOffsetX;
+          mod.y = e.clientY - workspaceRect.top - startOffsetY;
+          if (demoState.gridSize) {
+            mod.x = snap(mod.x);
+            mod.y = snap(mod.y);
+          }
+          clampModuleToWorkspace(mod);
+          applyModuleRect(moduleEl, mod);
+        };
+
+        const onUp = () => {
+          moduleEl.classList.remove('dragging');
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+        };
+
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+      });
+    }
+
+    function attachResize(moduleEl, mod) {
+      const handle = moduleEl.querySelector('.resize-handle');
+      handle.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        bringToFront(moduleEl);
+
+        const startX = event.clientX;
+        const startY = event.clientY;
+        const startW = mod.width;
+        const startH = mod.height;
+
+        const onMove = (e) => {
+          mod.width = Math.max(180, startW + (e.clientX - startX));
+          mod.height = Math.max(140, startH + (e.clientY - startY));
+          if (demoState.gridSize) {
+            mod.width = snap(mod.width);
+            mod.height = snap(mod.height);
+          }
+          mod.width = Math.min(mod.width, workspaceEl.clientWidth - mod.x);
+          mod.height = Math.min(mod.height, workspaceEl.clientHeight - mod.y);
+          applyModuleRect(moduleEl, mod);
+        };
+
+        const onUp = () => {
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+        };
+
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+      });
+    }
+
+    function archiveModule(moduleId) {
+      const activePanel = getActivePanel();
+      if (!activePanel || activePanel.is_archive) return;
+      const archivePanel = getPanelsForActiveScreen().find(p => p.is_archive);
+      const mod = demoState.modules.find(m => m.module_id === moduleId);
+      if (!archivePanel || !mod) return;
+      mod.panel_id = archivePanel.panel_id;
+      mod.is_archived = 1;
+      render();
+    }
+
+    function deleteModule(moduleId) {
+      const idx = demoState.modules.findIndex(m => m.module_id === moduleId);
+      if (idx >= 0) {
+        demoState.modules.splice(idx, 1);
+        render();
+      }
+    }
+
+    function openModuleDialog() {
+      moduleTypeEl.innerHTML = '';
+      MODULE_LIBRARY.forEach((item) => {
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = item.name;
+        moduleTypeEl.appendChild(option);
+      });
+      moduleDialogEl.showModal();
+    }
+
+    function addModule(type) {
+      const def = getModuleDef(type);
+      const panel = getActivePanel();
+      if (!def || !panel) return;
+      const count = getModulesForActivePanel().length;
+      const offset = (count % 6) * 24;
+      const mod = {
+        module_id: `mod-${crypto.randomUUID()}`,
+        panel_id: panel.panel_id,
+        module_type: def.id,
+        title: def.name,
+        x: snap(20 + offset),
+        y: snap(20 + offset),
+        width: def.defaultW,
+        height: def.defaultH,
+        is_archived: panel.is_archive ? 1 : 0
+      };
+      demoState.modules.push(mod);
+      render();
+    }
+
+    function autoArrange() {
+      const modules = getModulesForActivePanel();
+      if (!modules.length) return;
+      const gap = demoState.gridSize || 16;
+      const width = workspaceEl.clientWidth;
+      let x = gap;
+      let y = gap;
+      let rowH = 0;
+
+      modules.forEach((mod) => {
+        if (x + mod.width > width - gap) {
+          x = gap;
+          y += rowH + gap;
+          rowH = 0;
+        }
+        mod.x = demoState.gridSize ? snap(x) : x;
+        mod.y = demoState.gridSize ? snap(y) : y;
+        clampModuleToWorkspace(mod);
+        x += mod.width + gap;
+        rowH = Math.max(rowH, mod.height);
+      });
+
+      renderWorkspace();
+    }
+
+    function renderScreenSelect() {
+      screenSelectEl.innerHTML = '';
+      demoState.screens.forEach((screen) => {
+        const option = document.createElement('option');
+        option.value = screen.screen_id;
+        option.textContent = screen.name;
+        option.selected = screen.screen_id === demoState.activeScreenId;
+        screenSelectEl.appendChild(option);
+      });
+    }
+
+    function renderPanelTabs() {
+      panelTabsEl.innerHTML = '';
+      const panels = getPanelsForActiveScreen();
+      panels.forEach((panel) => {
+        const btn = document.createElement('button');
+        btn.className = `tab ${panel.panel_id === demoState.activePanelId ? 'active' : ''} ${panel.is_archive ? 'system' : ''}`;
+        btn.innerHTML = `<span class="tab-label">${panel.name}</span>`;
+        btn.addEventListener('click', () => {
+          demoState.activePanelId = panel.panel_id;
+          render();
+        });
+
+        if (!panel.is_archive) {
+          btn.addEventListener('dblclick', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            startPanelRename(panel.panel_id, btn);
+          });
+        }
+
+        panelTabsEl.appendChild(btn);
+      });
+    }
+
+    function startPanelRename(panelId, tabEl) {
+      const panel = demoState.panels.find((p) => p.panel_id === panelId);
+      if (!panel) return;
+
+      const currentLabel = tabEl.querySelector('.tab-label');
+      if (!currentLabel) return;
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'tab-edit-input';
+      input.value = panel.name;
+      currentLabel.replaceWith(input);
+      input.focus();
+      input.select();
+
+      const finish = (commit) => {
+        if (commit) {
+          const nextName = input.value.trim();
+          if (nextName) panel.name = nextName;
+        }
+        renderPanelTabs();
+      };
+
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') finish(true);
+        if (event.key === 'Escape') finish(false);
+      });
+
+      input.addEventListener('blur', () => finish(true));
+    }
+
+    function renderSidebar() {
+      sidebarListEl.innerHTML = '';
+      demoState.activeCharacters
+        .slice()
+        .sort((a, b) => Number(a.absent) - Number(b.absent))
+        .forEach((ch) => {
+          const card = document.createElement('div');
+          card.className = `sidebar-card ${demoState.sidebarMode} ${ch.absent ? 'absent' : ''}`;
+          card.draggable = true;
+          card.innerHTML = `
+            <div class="portrait"></div>
+            <div class="sidebar-meta">
+              <div class="name">${ch.name}</div>
+              <div class="subline">${ch.raceClass}</div>
+              <div class="statsline">${ch.stats}</div>
+            </div>
+          `;
+
+          if (demoState.sidebarMode === 'compact') {
+            card.querySelector('.subline').style.display = 'none';
+            card.querySelector('.statsline').style.display = 'none';
+          }
+          if (demoState.sidebarMode === 'medium') {
+            card.querySelector('.statsline').style.display = 'none';
+          }
+          sidebarListEl.appendChild(card);
+        });
+    }
+
+    function renderWorkspace() {
+      workspaceEl.innerHTML = '';
+      const modules = getModulesForActivePanel();
+      emptyStateEl.style.display = modules.length ? 'none' : 'grid';
+      screenInfoChipEl.textContent = `${modules.length} módulo${modules.length === 1 ? '' : 's'}`;
+
+      if (demoState.gridSize === 0) {
+        workspaceEl.classList.add('grid-off');
+      } else {
+        workspaceEl.classList.remove('grid-off');
+        workspaceEl.style.setProperty('--grid-size', `${demoState.gridSize}px`);
+      }
+
+      modules.forEach((mod, index) => {
+        const def = getModuleDef(mod.module_type);
+        const moduleEl = document.createElement('article');
+        moduleEl.className = 'module';
+        moduleEl.style.zIndex = String(index + 1);
+        moduleEl.innerHTML = `
+          <div class="module-header">
+            <div class="module-title">${mod.title}</div>
+            <div class="module-actions">
+              <button class="icon-btn" title="Archivar">🗄</button>
+              <button class="icon-btn danger-soft" title="Cerrar">✕</button>
+            </div>
+          </div>
+          <div class="module-body">
+            <iframe class="module-frame" src="${def ? def.html : 'about:blank'}?module_id=${encodeURIComponent(mod.module_id)}" title="${mod.title}"></iframe>
+          </div>
+          <div class="resize-handle" title="Cambiar tamaño"></div>
+        `;
+
+        applyModuleRect(moduleEl, mod);
+        attachDrag(moduleEl, mod);
+        attachResize(moduleEl, mod);
+        moduleEl.querySelectorAll('.icon-btn')[0].addEventListener('click', () => archiveModule(mod.module_id));
+        moduleEl.querySelectorAll('.icon-btn')[1].addEventListener('click', () => deleteModule(mod.module_id));
+        workspaceEl.appendChild(moduleEl);
+      });
+    }
+
+    function render() {
+      renderScreenSelect();
+      renderPanelTabs();
+      renderSidebar();
+      renderWorkspace();
+      gridSizeEl.value = String(demoState.gridSize);
+    }
+
+    function closeMenus() {
+      appMenuEl.classList.remove('open');
+      screenMenuEl.classList.remove('open');
+    }
+
+    document.getElementById('addModuleBtn').addEventListener('click', openModuleDialog);
+    document.getElementById('cancelModuleBtn').addEventListener('click', () => moduleDialogEl.close());
+    document.getElementById('confirmModuleBtn').addEventListener('click', () => {
+      addModule(moduleTypeEl.value);
+      moduleDialogEl.close();
+    });
+
+    document.getElementById('autoArrangeBtn').addEventListener('click', autoArrange);
+
+    document.getElementById('addPanelBtn').addEventListener('click', () => {
+      const next = demoState.panels.filter(p => p.screen_id === demoState.activeScreenId && !p.is_archive).length + 1;
+      const panel = {
+        panel_id: `panel-${crypto.randomUUID()}`,
+        screen_id: demoState.activeScreenId,
+        name: `Panel ${next}`,
+        is_archive: 0
+      };
+      const archive = demoState.panels.find(p => p.screen_id === demoState.activeScreenId && p.is_archive);
+      const idx = archive ? demoState.panels.indexOf(archive) : demoState.panels.length;
+      demoState.panels.splice(idx, 0, panel);
+      demoState.activePanelId = panel.panel_id;
+      render();
+    });
+
+    document.getElementById('archiveTabBtn').addEventListener('click', () => {
+      const archive = demoState.panels.find(p => p.screen_id === demoState.activeScreenId && p.is_archive);
+      if (!archive) return;
+      demoState.activePanelId = archive.panel_id;
+      render();
+    });
+
+    document.getElementById('newScreenBtn').addEventListener('click', () => {
+      const n = demoState.screens.length + 1;
+      const screenId = `screen-${crypto.randomUUID()}`;
+      demoState.screens.push({ screen_id: screenId, name: `Pantalla ${n}` });
+      demoState.panels.push({ panel_id: `panel-${crypto.randomUUID()}`, screen_id: screenId, name: 'Panel 1', is_archive: 0 });
+      const archiveId = `panel-${crypto.randomUUID()}`;
+      demoState.panels.push({ panel_id: archiveId, screen_id: screenId, name: 'Archivo', is_archive: 1 });
+      demoState.activeScreenId = screenId;
+      demoState.activePanelId = demoState.panels.find(p => p.screen_id === screenId && !p.is_archive).panel_id;
+      render();
+    });
+
+    document.getElementById('deleteScreenBtn').addEventListener('click', () => {
+      if (demoState.screens.length <= 1) return;
+      const currentId = demoState.activeScreenId;
+      demoState.modules = demoState.modules.filter(m => !demoState.panels.some(p => p.panel_id === m.panel_id && p.screen_id === currentId));
+      demoState.panels = demoState.panels.filter(p => p.screen_id !== currentId);
+      demoState.screens = demoState.screens.filter(s => s.screen_id !== currentId);
+      demoState.activeScreenId = demoState.screens[0].screen_id;
+      demoState.activePanelId = demoState.panels.find(p => p.screen_id === demoState.activeScreenId && !p.is_archive).panel_id;
+      render();
+    });
+
+    screenSelectEl.addEventListener('change', () => {
+      demoState.activeScreenId = screenSelectEl.value;
+      const firstPanel = demoState.panels.find(p => p.screen_id === demoState.activeScreenId && !p.is_archive);
+      if (firstPanel) demoState.activePanelId = firstPanel.panel_id;
+      render();
+    });
+
+    gridSizeEl.addEventListener('change', () => {
+      demoState.gridSize = Number(gridSizeEl.value);
+      renderWorkspace();
+    });
+
+    document.getElementById('toggleSidebarSizeBtn').addEventListener('click', () => {
+      demoState.sidebarMode = demoState.sidebarMode === 'compact'
+        ? 'medium'
+        : demoState.sidebarMode === 'medium'
+          ? 'large'
+          : 'compact';
+
+      document.documentElement.style.setProperty('--sidebar-w', demoState.sidebarMode === 'compact' ? '100px' : demoState.sidebarMode === 'medium' ? '220px' : '290px');
+      renderSidebar();
+    });
+
+    appMenuBtnEl.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const open = appMenuEl.classList.contains('open');
+      closeMenus();
+      if (!open) appMenuEl.classList.add('open');
+    });
+
+    screenMenuBtnEl.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const open = screenMenuEl.classList.contains('open');
+      closeMenus();
+      if (!open) screenMenuEl.classList.add('open');
+    });
+
+    document.addEventListener('click', closeMenus);
+
+    window.addEventListener('resize', () => {
+      getModulesForActivePanel().forEach((mod) => clampModuleToWorkspace(mod));
+      renderWorkspace();
+    });
+
+    render();
+  </script>
+</body>
+</html>
