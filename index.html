@@ -489,6 +489,12 @@
       box-shadow: 0 18px 42px rgba(0,0,0,.52);
     }
 
+    .module.interacting .module-body,
+    .module.interacting .module-frame,
+    .module.interacting .module-body * {
+      pointer-events: none;
+    }
+
     .module-header {
       display: flex;
       align-items: center;
@@ -881,6 +887,7 @@
         if (event.target.closest('.module-actions')) return;
         event.preventDefault();
         moduleEl.classList.add('dragging');
+        moduleEl.classList.add('interacting');
         bringToFront(moduleEl);
 
         const rect = moduleEl.getBoundingClientRect();
@@ -901,6 +908,7 @@
 
         const onUp = () => {
           moduleEl.classList.remove('dragging');
+          moduleEl.classList.remove('interacting');
           window.removeEventListener('pointermove', onMove);
           window.removeEventListener('pointerup', onUp);
         };
@@ -915,6 +923,7 @@
       handle.addEventListener('pointerdown', (event) => {
         event.preventDefault();
         event.stopPropagation();
+        moduleEl.classList.add('interacting');
         bringToFront(moduleEl);
 
         const startX = event.clientX;
@@ -935,6 +944,7 @@
         };
 
         const onUp = () => {
+          moduleEl.classList.remove('interacting');
           window.removeEventListener('pointermove', onMove);
           window.removeEventListener('pointerup', onUp);
         };
@@ -1106,6 +1116,7 @@
               <div class="statsline">${ch.stats}</div>
             </div>
           `;
+          card.querySelectorAll('.presence-toggle, .status-pill, .character-status-pill').forEach((el) => el.remove());
           card.addEventListener('contextmenu', (event) => openCharacterContextMenu(event, ch));
 
           if (demoState.sidebarMode === 'compact') {
