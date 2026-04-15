@@ -305,6 +305,20 @@
       color: var(--muted);
     }
 
+    .sidebar-header-title {
+      min-width: 0;
+      flex: 1 1 auto;
+      font-size: 11px;
+      letter-spacing: .3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sidebar-header .icon-btn {
+      flex: 0 0 auto;
+    }
+
     .sidebar-list {
       padding: 8px;
       overflow: auto;
@@ -737,7 +751,7 @@
 
       <aside class="sidebar" id="characterSidebar">
         <div class="sidebar-header">
-          <span>PERSONAJES</span>
+          <span class="sidebar-header-title">PERSONAJES</span>
           <button class="icon-btn" id="toggleSidebarSizeBtn" title="Cambiar tamaño">⇄</button>
         </div>
         <div class="sidebar-list" id="sidebarList"></div>
@@ -1167,7 +1181,7 @@
     function openCharacterContextMenu(event, character) {
       event.preventDefault();
       contextMenuCharacter = character;
-      characterContextToggleBtnEl.textContent = character.absent ? 'Marcar como Presente' : 'Marcar como Ausente';
+      characterContextToggleBtnEl.textContent = 'Cambiar asistencia';
       characterContextMenuEl.hidden = false;
 
       const menuWidth = characterContextMenuEl.offsetWidth;
