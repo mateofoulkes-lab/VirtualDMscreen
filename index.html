@@ -1100,25 +1100,58 @@
       moduleDialogEl.showModal();
     }
 
-    function addModule(typeCode) {
+    async function addModule(typeCode) {
       const def = getModuleDef(typeCode);
       const panel = getActivePanel();
       if (!def || !panel) return;
+      const panelId = Number(panel.panel_id);
+      if (!Number.isFinite(panelId)) {
+        console.error('panel_id inválido para crear módulo.', panel.panel_id);
+        return;
+      }
       const count = getModulesForActivePanel().length;
       const offset = (count % 6) * 24;
-      const mod = {
-        module_id: `mod-${crypto.randomUUID()}`,
-        panel_id: panel.panel_id,
-        module_type: def.code,
+      const payload = {
+        panel_id: panelId,
+        type: def.code,
         title: def.name,
-        x: snap(20 + offset),
-        y: snap(20 + offset),
+        position_x: snap(20 + offset),
+        position_y: snap(20 + offset),
         width: def.defaultW,
-        height: def.defaultH,
-        is_archived: panel.is_archive ? 1 : 0
+        height: def.defaultH
       };
-      appState.modules.push(mod);
-      render();
+
+      try {
+        const response = await fetch('api/create_module.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.success || !result.module) {
+          console.error('No se pudo crear el módulo.', result);
+          return;
+        }
+
+        const created = result.module;
+        appState.modules.push({
+          module_id: String(created.id),
+          panel_id: String(created.panel_id),
+          module_type: created.type,
+          title: created.title || def.name,
+          x: Number(created.position_x) || 0,
+          y: Number(created.position_y) || 0,
+          width: Number(created.width) || def.defaultW,
+          height: Number(created.height) || def.defaultH,
+          is_archived: Number(created.is_archived) ? 1 : 0
+        });
+        render();
+      } catch (error) {
+        console.error('Error al crear módulo en backend.', error);
+      }
     }
 
     function autoArrange() {
