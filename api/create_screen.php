@@ -83,7 +83,6 @@ try {
         ':created_at' => $now,
         ':updated_at' => $now,
     ]);
-    $panel1Id = (int) $pdo->lastInsertId();
 
     $insertPanelStmt->execute([
         ':screen_id' => $screenId,
@@ -93,7 +92,6 @@ try {
         ':created_at' => $now,
         ':updated_at' => $now,
     ]);
-    $archivePanelId = (int) $pdo->lastInsertId();
 
     $screenStmt = $pdo->prepare('SELECT id, name, created_at, updated_at FROM screens WHERE id = :id LIMIT 1');
     $screenStmt->execute([':id' => $screenId]);
@@ -102,13 +100,10 @@ try {
     $panelsStmt = $pdo->prepare(
         'SELECT id, screen_id, name, sort_order, is_archive, created_at, updated_at
          FROM panels
-         WHERE id IN (:panel1_id, :archive_id)
+         WHERE screen_id = :screen_id
          ORDER BY sort_order ASC, id ASC'
     );
-    $panelsStmt->execute([
-        ':panel1_id' => $panel1Id,
-        ':archive_id' => $archivePanelId,
-    ]);
+    $panelsStmt->execute([':screen_id' => $screenId]);
     $panels = $panelsStmt->fetchAll(PDO::FETCH_ASSOC);
 
     $pdo->commit();

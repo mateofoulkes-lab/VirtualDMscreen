@@ -1365,20 +1365,47 @@
 
     document.getElementById('autoArrangeBtn').addEventListener('click', autoArrange);
 
-    document.getElementById('addPanelBtn').addEventListener('click', () => {
+    document.getElementById('addPanelBtn').addEventListener('click', async () => {
       if (!appState.activeScreenId) return;
+      const screenId = Number(appState.activeScreenId);
+      if (!Number.isFinite(screenId)) {
+        console.error('screen_id inválido para crear panel.', appState.activeScreenId);
+        return;
+      }
       const next = appState.panels.filter(p => p.screen_id === appState.activeScreenId && !p.is_archive).length + 1;
-      const panel = {
-        panel_id: `panel-${crypto.randomUUID()}`,
-        screen_id: appState.activeScreenId,
-        name: `Panel ${next}`,
-        is_archive: 0
+      const payload = {
+        screen_id: screenId,
+        name: `Panel ${next}`
       };
-      const archive = appState.panels.find(p => p.screen_id === appState.activeScreenId && p.is_archive);
-      const idx = archive ? appState.panels.indexOf(archive) : appState.panels.length;
-      appState.panels.splice(idx, 0, panel);
-      appState.activePanelId = panel.panel_id;
-      render();
+
+      try {
+        const response = await fetch('api/create_panel.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.success || !result.panel) {
+          console.error('No se pudo crear el panel.', result);
+          return;
+        }
+
+        const panel = result.panel;
+        appState.panels.push({
+          panel_id: String(panel.id),
+          screen_id: String(panel.screen_id),
+          name: panel.name || payload.name,
+          sort_order: Number(panel.sort_order) || 0,
+          is_archive: Number(panel.is_archive) ? 1 : 0
+        });
+        appState.activePanelId = String(panel.id);
+        render();
+      } catch (error) {
+        console.error('Error al crear panel en backend.', error);
+      }
     });
 
     document.getElementById('archiveTabBtn').addEventListener('click', () => {
@@ -1388,16 +1415,47 @@
       render();
     });
 
-    document.getElementById('newScreenBtn').addEventListener('click', () => {
+    document.getElementById('newScreenBtn').addEventListener('click', async () => {
       const n = appState.screens.length + 1;
-      const screenId = `screen-${crypto.randomUUID()}`;
-      appState.screens.push({ screen_id: screenId, name: `Pantalla ${n}` });
-      appState.panels.push({ panel_id: `panel-${crypto.randomUUID()}`, screen_id: screenId, name: 'Panel 1', is_archive: 0 });
-      const archiveId = `panel-${crypto.randomUUID()}`;
-      appState.panels.push({ panel_id: archiveId, screen_id: screenId, name: 'Archivo', is_archive: 1 });
-      appState.activeScreenId = screenId;
-      appState.activePanelId = chooseInitialPanelId(screenId);
-      render();
+      const payload = { name: `Pantalla ${n}` };
+
+      try {
+        const response = await fetch('api/create_screen.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.success || !result.screen || !Array.isArray(result.panels)) {
+          console.error('No se pudo crear la pantalla.', result);
+          return;
+        }
+
+        const screen = result.screen;
+        appState.screens.push({
+          screen_id: String(screen.id),
+          name: screen.name || payload.name
+        });
+
+        result.panels.forEach((panel) => {
+          appState.panels.push({
+            panel_id: String(panel.id),
+            screen_id: String(panel.screen_id),
+            name: panel.name || 'Panel',
+            sort_order: Number(panel.sort_order) || 0,
+            is_archive: Number(panel.is_archive) ? 1 : 0
+          });
+        });
+
+        appState.activeScreenId = String(screen.id);
+        appState.activePanelId = chooseInitialPanelId(appState.activeScreenId);
+        render();
+      } catch (error) {
+        console.error('Error al crear pantalla en backend.', error);
+      }
     });
 
     document.getElementById('deleteScreenBtn').addEventListener('click', () => {
