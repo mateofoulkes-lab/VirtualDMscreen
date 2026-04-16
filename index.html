@@ -1802,9 +1802,57 @@
       }
     });
 
-    function deleteActiveScreen() {
-      if (appState.screens.length <= 1 || !appState.activeScreenId) return;
+    async function renameActiveScreen(nextName) {
+      if (!appState.activeScreenId) return false;
+      const response = await fetch('api/update_screen_name.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          screen_id: Number(appState.activeScreenId),
+          name: nextName
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.screen) {
+        throw new Error('No se pudo renombrar la pantalla.');
+      }
+
+      const activeScreen = appState.screens.find((s) => s.screen_id === appState.activeScreenId);
+      if (activeScreen) {
+        activeScreen.name = result.screen.name || nextName;
+      }
+      renderScreenSelect();
+      return true;
+    }
+
+    async function deleteActiveScreen() {
+      if (appState.screens.length <= 1 || !appState.activeScreenId) {
+        window.alert('Debe haber al menos una pantalla');
+        return;
+      }
       const currentId = appState.activeScreenId;
+      try {
+        const response = await fetch('api/delete_screen.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            screen_id: Number(currentId)
+          })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          console.error('No se pudo eliminar la pantalla.', result);
+          return;
+        }
+      } catch (error) {
+        console.error('Error al eliminar pantalla en backend.', error);
+        return;
+      }
+
       appState.modules = appState.modules.filter(m => !appState.panels.some(p => p.panel_id === m.panel_id && p.screen_id === currentId));
       appState.panels = appState.panels.filter(p => p.screen_id !== currentId);
       appState.screens = appState.screens.filter(s => s.screen_id !== currentId);
@@ -1897,20 +1945,24 @@
 
       if (action === 'rename-screen') {
         const activeScreen = appState.screens.find((s) => s.screen_id === appState.activeScreenId);
-        if (activeScreen) {
-          const inputName = window.prompt('Nuevo nombre de la pantalla actual:', activeScreen.name);
-          const nextName = inputName ? inputName.trim() : '';
-          if (nextName) {
-            activeScreen.name = nextName;
-            renderScreenSelect();
-          }
+        const inputName = window.prompt('Nuevo nombre de la pantalla actual:', activeScreen?.name || '');
+        const nextName = inputName ? inputName.trim() : '';
+        if (nextName) {
+          renameActiveScreen(nextName).catch((error) => {
+            console.error('Error al renombrar pantalla.', error);
+          });
         }
       }
 
       if (action === 'delete-screen') {
-        const firstConfirm = window.confirm('¿Seguro que querés eliminar la pantalla actual?');
+        if (appState.screens.length <= 1) {
+          window.alert('Debe haber al menos una pantalla');
+          closeLogoAppMenu();
+          return;
+        }
+        const firstConfirm = window.confirm('¿Seguro que querés eliminar esta pantalla?');
         if (firstConfirm) {
-          const secondConfirm = window.confirm('Esta acción eliminará TODO lo que hay dentro de la pantalla actual. ¿Continuar?');
+          const secondConfirm = window.confirm('Se va a borrar TODO lo que hay en esta pantalla: paneles, módulos y archivo. ¿Continuar?');
           if (secondConfirm) {
             deleteActiveScreen();
           }
