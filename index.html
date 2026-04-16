@@ -600,6 +600,56 @@
     .dialog-inner p { margin: 0 0 14px; color: var(--muted); }
     .field { display: grid; gap: 7px; margin-bottom: 14px; }
     .field label { font-size: 13px; color: var(--muted); }
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .module-tile {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,.08);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 12px;
+      cursor: pointer;
+      min-height: 98px;
+      padding: 10px 8px;
+      display: grid;
+      place-items: center;
+      gap: 6px;
+      text-align: center;
+      transition: transform .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+
+    .module-tile:hover {
+      transform: translateY(-1px);
+      background: var(--panel-3);
+    }
+
+    .module-tile.selected {
+      background: linear-gradient(180deg, rgba(122,162,255,.30), rgba(122,162,255,.12));
+      border-color: rgba(122,162,255,.55);
+      box-shadow: inset 0 0 0 1px rgba(122,162,255,.32);
+    }
+
+    .module-tile-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      object-fit: cover;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      padding: 4px;
+    }
+
+    .module-tile-name {
+      font-size: 12px;
+      line-height: 1.2;
+      color: var(--text);
+    }
+
     .dialog-actions {
       display: flex;
       justify-content: flex-end;
@@ -708,6 +758,7 @@
           <button class="menu-item" data-action="open-screen-manager">Administrador de pantallas</button>
           <button class="menu-item" data-action="open-campaigns">Campañas</button>
           <button class="menu-item" data-action="open-module-library">Módulos disponibles</button>
+          <button class="menu-item" data-action="import-module">Importar nuevo módulo</button>
           <button class="menu-item" data-action="backup-export">Exportar respaldo</button>
           <button class="menu-item" data-action="backup-import">Importar respaldo</button>
         </div>
@@ -774,8 +825,8 @@
       <h3>Agregar módulo</h3>
       <p>Seleccioná el tipo de módulo que querés crear en el panel activo.</p>
       <div class="field">
-        <label for="moduleType">Tipo de módulo</label>
-        <select id="moduleType"></select>
+        <label>Tipo de módulo</label>
+        <div class="module-grid" id="moduleTypeGrid"></div>
       </div>
     </div>
     <div class="dialog-actions">
@@ -809,7 +860,7 @@
     const gridSizeEl = document.getElementById('gridSize');
     const screenInfoChipEl = document.getElementById('screenInfoChip');
     const moduleDialogEl = document.getElementById('moduleDialog');
-    const moduleTypeEl = document.getElementById('moduleType');
+    const moduleTypeGridEl = document.getElementById('moduleTypeGrid');
     const appMenuBtnEl = document.getElementById('appMenuBtn');
     const appMenuEl = document.getElementById('appMenu');
     const screenMenuBtnEl = document.getElementById('screenMenuBtn');
@@ -817,6 +868,7 @@
     const characterContextMenuEl = document.getElementById('characterContextMenu');
     const characterContextToggleBtnEl = document.getElementById('characterContextToggleBtn');
     let contextMenuCharacter = null;
+    let selectedModuleTypeId = null;
 
     function chooseInitialPanelId(screenId) {
       const panels = appState.panels.filter((p) => p.screen_id === screenId);
@@ -862,7 +914,6 @@
 
         appState.moduleDefinitions = Array.isArray(payload.module_definitions)
           ? payload.module_definitions.map((def) => ({
-              id: def.code,
               code: def.code,
               name: def.name || def.code,
               html: def.html_path || '',
@@ -894,8 +945,8 @@
       return appState.modules.filter((m) => m.panel_id === appState.activePanelId);
     }
 
-    function getModuleDef(type) {
-      return appState.moduleDefinitions.find((m) => m.id === type) || null;
+    function getModuleDef(typeCode) {
+      return appState.moduleDefinitions.find((m) => m.code === typeCode) || null;
     }
 
     function snap(value) {
@@ -1015,36 +1066,92 @@
       }
     }
 
-    function openModuleDialog() {
-      moduleTypeEl.innerHTML = '';
-      appState.moduleDefinitions.forEach((item) => {
-        const option = document.createElement('option');
-        option.value = item.id;
-        option.textContent = item.name;
-        moduleTypeEl.appendChild(option);
+    function deriveModuleIconPath(htmlPath) {
+      if (!htmlPath) return '';
+      const parts = htmlPath.split('/');
+      if (parts.length <= 1) return 'icon.png';
+      parts[parts.length - 1] = 'icon.png';
+      return parts.join('/');
+    }
+
+    function setSelectedModuleType(typeCode) {
+      selectedModuleTypeId = typeCode;
+      moduleTypeGridEl.querySelectorAll('.module-tile').forEach((tile) => {
+        tile.classList.toggle('selected', tile.dataset.type === typeCode);
       });
+    }
+
+    function openModuleDialog() {
+      moduleTypeGridEl.innerHTML = '';
+      appState.moduleDefinitions.forEach((item) => {
+        const tile = document.createElement('button');
+        tile.type = 'button';
+        tile.className = 'module-tile';
+        tile.dataset.type = item.code;
+        tile.innerHTML = `
+          <img class="module-tile-icon" src="${deriveModuleIconPath(item.html_path)}" alt="">
+          <span class="module-tile-name">${item.name}</span>
+        `;
+        tile.addEventListener('click', () => setSelectedModuleType(item.code));
+        moduleTypeGridEl.appendChild(tile);
+      });
+      const firstType = appState.moduleDefinitions[0]?.code ?? null;
+      setSelectedModuleType(selectedModuleTypeId && getModuleDef(selectedModuleTypeId) ? selectedModuleTypeId : firstType);
       moduleDialogEl.showModal();
     }
 
-    function addModule(type) {
-      const def = getModuleDef(type);
+    async function addModule(typeCode) {
+      const def = getModuleDef(typeCode);
       const panel = getActivePanel();
       if (!def || !panel) return;
+      const panelId = Number(panel.panel_id);
+      if (!Number.isFinite(panelId)) {
+        console.error('panel_id inválido para crear módulo.', panel.panel_id);
+        return;
+      }
       const count = getModulesForActivePanel().length;
       const offset = (count % 6) * 24;
-      const mod = {
-        module_id: `mod-${crypto.randomUUID()}`,
-        panel_id: panel.panel_id,
-        module_type: def.id,
+      const payload = {
+        panel_id: panelId,
+        type: def.code,
         title: def.name,
-        x: snap(20 + offset),
-        y: snap(20 + offset),
+        position_x: snap(20 + offset),
+        position_y: snap(20 + offset),
         width: def.defaultW,
-        height: def.defaultH,
-        is_archived: panel.is_archive ? 1 : 0
+        height: def.defaultH
       };
-      appState.modules.push(mod);
-      render();
+
+      try {
+        const response = await fetch('api/create_module.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.success || !result.module) {
+          console.error('No se pudo crear el módulo.', result);
+          return;
+        }
+
+        const created = result.module;
+        appState.modules.push({
+          module_id: String(created.id),
+          panel_id: String(created.panel_id),
+          module_type: created.type,
+          title: created.title || def.name,
+          x: Number(created.position_x) || 0,
+          y: Number(created.position_y) || 0,
+          width: Number(created.width) || def.defaultW,
+          height: Number(created.height) || def.defaultH,
+          is_archived: Number(created.is_archived) ? 1 : 0
+        });
+        render();
+      } catch (error) {
+        console.error('Error al crear módulo en backend.', error);
+      }
     }
 
     function autoArrange() {
@@ -1251,7 +1358,8 @@
     document.getElementById('addModuleBtn').addEventListener('click', openModuleDialog);
     document.getElementById('cancelModuleBtn').addEventListener('click', () => moduleDialogEl.close());
     document.getElementById('confirmModuleBtn').addEventListener('click', () => {
-      addModule(moduleTypeEl.value);
+      const fallbackType = appState.moduleDefinitions[0]?.code ?? null;
+      addModule(selectedModuleTypeId || fallbackType);
       moduleDialogEl.close();
     });
 
@@ -1337,6 +1445,15 @@
       const open = appMenuEl.classList.contains('open');
       closeMenus();
       if (!open) appMenuEl.classList.add('open');
+    });
+
+    appMenuEl.addEventListener('click', (event) => {
+      const menuItem = event.target.closest('.menu-item');
+      if (!menuItem) return;
+      if (menuItem.dataset.action === 'import-module') {
+        console.info('TODO: implementar importación de nuevo módulo.');
+      }
+      closeMenus();
     });
 
     screenMenuBtnEl.addEventListener('click', (event) => {
