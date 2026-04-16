@@ -734,6 +734,10 @@
       padding: 0 18px 18px;
     }
 
+    .dialog-actions.start {
+      justify-content: flex-start;
+    }
+
     .menu-anchor { position: relative; }
 
     .menu-dropdown {
@@ -893,6 +897,30 @@
     </div>
   </dialog>
 
+  <dialog id="confirmDialog">
+    <div class="dialog-inner">
+      <h3 id="confirmDialogTitle"></h3>
+      <p id="confirmDialogMessage"></p>
+    </div>
+    <div class="dialog-actions" id="confirmDialogActions">
+      <button class="btn" id="confirmDialogCancelBtn">Cancelar</button>
+      <button class="btn primary" id="confirmDialogOkBtn">Confirmar</button>
+    </div>
+  </dialog>
+
+  <dialog id="inputDialog">
+    <div class="dialog-inner">
+      <h3 id="inputDialogTitle"></h3>
+      <div class="field">
+        <input type="text" id="inputDialogField">
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn" id="inputDialogCancelBtn">Cancelar</button>
+      <button class="btn primary" id="inputDialogSaveBtn">Guardar</button>
+    </div>
+  </dialog>
+
   <script>
     const appState = {
       activeScreenId: null,
@@ -918,6 +946,17 @@
     const gridSizeEl = document.getElementById('gridSize');
     const moduleDialogEl = document.getElementById('moduleDialog');
     const moduleTypeGridEl = document.getElementById('moduleTypeGrid');
+    const confirmDialogEl = document.getElementById('confirmDialog');
+    const confirmDialogTitleEl = document.getElementById('confirmDialogTitle');
+    const confirmDialogMessageEl = document.getElementById('confirmDialogMessage');
+    const confirmDialogActionsEl = document.getElementById('confirmDialogActions');
+    const confirmDialogCancelBtnEl = document.getElementById('confirmDialogCancelBtn');
+    const confirmDialogOkBtnEl = document.getElementById('confirmDialogOkBtn');
+    const inputDialogEl = document.getElementById('inputDialog');
+    const inputDialogTitleEl = document.getElementById('inputDialogTitle');
+    const inputDialogFieldEl = document.getElementById('inputDialogField');
+    const inputDialogCancelBtnEl = document.getElementById('inputDialogCancelBtn');
+    const inputDialogSaveBtnEl = document.getElementById('inputDialogSaveBtn');
     const characterContextMenuEl = document.getElementById('characterContextMenu');
     const characterContextToggleBtnEl = document.getElementById('characterContextToggleBtn');
     const renameContextMenuEl = document.getElementById('renameContextMenu');
@@ -1471,6 +1510,7 @@
       };
 
       input.addEventListener('keydown', (event) => {
+        event.stopPropagation();
         if (event.key === 'Enter') {
           event.preventDefault();
           finish(true);
@@ -1480,6 +1520,8 @@
           finish(false);
         }
       });
+      input.addEventListener('keyup', (event) => event.stopPropagation());
+      input.addEventListener('keypress', (event) => event.stopPropagation());
 
       input.addEventListener('blur', () => finish(true));
     }
@@ -1686,6 +1728,91 @@
       renameContextMenuEl.style.top = `${event.clientY}px`;
     }
 
+    function showConfirmDialog({ title, message, confirmText = 'Confirmar', cancelText = 'Cancelar', showCancel = true }) {
+      return new Promise((resolve) => {
+        confirmDialogTitleEl.textContent = title;
+        confirmDialogMessageEl.textContent = message;
+        confirmDialogOkBtnEl.textContent = confirmText;
+        confirmDialogCancelBtnEl.textContent = cancelText;
+        confirmDialogCancelBtnEl.hidden = !showCancel;
+        confirmDialogActionsEl.classList.toggle('start', !showCancel);
+
+        const cleanup = () => {
+          confirmDialogOkBtnEl.onclick = null;
+          confirmDialogCancelBtnEl.onclick = null;
+          confirmDialogEl.oncancel = null;
+        };
+
+        confirmDialogOkBtnEl.onclick = () => {
+          cleanup();
+          confirmDialogEl.close();
+          resolve(true);
+        };
+
+        confirmDialogCancelBtnEl.onclick = () => {
+          cleanup();
+          confirmDialogEl.close();
+          resolve(false);
+        };
+
+        confirmDialogEl.oncancel = () => {
+          cleanup();
+          resolve(false);
+        };
+
+        confirmDialogEl.showModal();
+      });
+    }
+
+    function showInputDialog({ title, initialValue = '' }) {
+      return new Promise((resolve) => {
+        inputDialogTitleEl.textContent = title;
+        inputDialogFieldEl.value = initialValue;
+
+        const cleanup = () => {
+          inputDialogSaveBtnEl.onclick = null;
+          inputDialogCancelBtnEl.onclick = null;
+          inputDialogFieldEl.onkeydown = null;
+          inputDialogEl.oncancel = null;
+        };
+
+        const save = () => {
+          const value = inputDialogFieldEl.value.trim();
+          cleanup();
+          inputDialogEl.close();
+          resolve(value || null);
+        };
+
+        const cancel = () => {
+          cleanup();
+          inputDialogEl.close();
+          resolve(null);
+        };
+
+        inputDialogSaveBtnEl.onclick = save;
+        inputDialogCancelBtnEl.onclick = cancel;
+        inputDialogFieldEl.onkeydown = (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            save();
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            cancel();
+          }
+        };
+
+        inputDialogEl.oncancel = () => {
+          cleanup();
+          resolve(null);
+        };
+
+        inputDialogEl.showModal();
+        inputDialogFieldEl.focus();
+        inputDialogFieldEl.select();
+      });
+    }
+
     function openCharacterContextMenu(event, character) {
       event.preventDefault();
       contextMenuCharacter = character;
@@ -1829,7 +1956,12 @@
 
     async function deleteActiveScreen() {
       if (appState.screens.length <= 1 || !appState.activeScreenId) {
-        window.alert('Debe haber al menos una pantalla');
+        await showConfirmDialog({
+          title: 'No se puede eliminar',
+          message: 'Debe haber al menos una pantalla',
+          confirmText: 'Entendido',
+          showCancel: false
+        });
         return;
       }
       const currentId = appState.activeScreenId;
@@ -1861,13 +1993,18 @@
       render();
     }
 
-    function deletePanelById(panelId) {
+    async function deletePanelById(panelId) {
       const panel = appState.panels.find((p) => p.panel_id === panelId);
       if (!panel || panel.is_archive) return;
 
       const nonArchivePanels = appState.panels.filter((p) => p.screen_id === panel.screen_id && !p.is_archive);
       if (nonArchivePanels.length <= 1) {
-        window.alert('Debe haber al menos un panel');
+        await showConfirmDialog({
+          title: 'No se puede eliminar',
+          message: 'Debe haber al menos un panel',
+          confirmText: 'Entendido',
+          showCancel: false
+        });
         return;
       }
 
@@ -1921,16 +2058,22 @@
       closeRenameContextMenu();
     });
 
-    renameContextDeleteBtnEl.addEventListener('click', () => {
+    renameContextDeleteBtnEl.addEventListener('click', async () => {
       if (!renameContextTarget || renameContextTarget.type !== 'panel') return;
-      const firstConfirm = window.confirm('¿Seguro que querés eliminar este panel?');
+      const firstConfirm = await showConfirmDialog({
+        title: 'Eliminar panel',
+        message: '¿Seguro que querés eliminar este panel?'
+      });
       if (!firstConfirm) {
         closeRenameContextMenu();
         return;
       }
-      const secondConfirm = window.confirm('Se va a borrar TODO lo que hay en este panel. ¿Continuar?');
+      const secondConfirm = await showConfirmDialog({
+        title: 'Eliminar panel',
+        message: 'Se va a borrar TODO lo que hay en este panel. ¿Continuar?'
+      });
       if (secondConfirm) {
-        deletePanelById(renameContextTarget.panelId);
+        await deletePanelById(renameContextTarget.panelId);
       }
       closeRenameContextMenu();
     });
@@ -1938,15 +2081,17 @@
     logoMenuBtnEl.addEventListener('click', openLogoAppMenuFromEvent);
     logoMenuBtnEl.addEventListener('contextmenu', openLogoAppMenuFromEvent);
 
-    logoAppMenuEl.addEventListener('click', (event) => {
+    logoAppMenuEl.addEventListener('click', async (event) => {
       const menuItem = event.target.closest('.app-logo-menu-item');
       if (!menuItem) return;
       const action = menuItem.dataset.action;
 
       if (action === 'rename-screen') {
         const activeScreen = appState.screens.find((s) => s.screen_id === appState.activeScreenId);
-        const inputName = window.prompt('Nuevo nombre de la pantalla actual:', activeScreen?.name || '');
-        const nextName = inputName ? inputName.trim() : '';
+        const nextName = await showInputDialog({
+          title: 'Renombrar pantalla actual',
+          initialValue: activeScreen?.name || ''
+        });
         if (nextName) {
           renameActiveScreen(nextName).catch((error) => {
             console.error('Error al renombrar pantalla.', error);
@@ -1956,15 +2101,26 @@
 
       if (action === 'delete-screen') {
         if (appState.screens.length <= 1) {
-          window.alert('Debe haber al menos una pantalla');
+          await showConfirmDialog({
+            title: 'No se puede eliminar',
+            message: 'Debe haber al menos una pantalla',
+            confirmText: 'Entendido',
+            showCancel: false
+          });
           closeLogoAppMenu();
           return;
         }
-        const firstConfirm = window.confirm('¿Seguro que querés eliminar esta pantalla?');
+        const firstConfirm = await showConfirmDialog({
+          title: 'Eliminar pantalla actual',
+          message: '¿Seguro que querés eliminar esta pantalla?'
+        });
         if (firstConfirm) {
-          const secondConfirm = window.confirm('Se va a borrar TODO lo que hay en esta pantalla: paneles, módulos y archivo. ¿Continuar?');
+          const secondConfirm = await showConfirmDialog({
+            title: 'Eliminar pantalla actual',
+            message: 'Se va a borrar TODO lo que hay en esta pantalla: paneles, módulos y archivo. ¿Continuar?'
+          });
           if (secondConfirm) {
-            deleteActiveScreen();
+            await deleteActiveScreen();
           }
         }
       }
