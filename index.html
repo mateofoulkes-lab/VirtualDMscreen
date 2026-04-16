@@ -645,28 +645,18 @@
       inset: 0;
       display: grid;
       place-items: center;
-      text-align: center;
-      color: var(--muted);
       padding: 20px;
       pointer-events: none;
     }
 
-    .empty-card {
-      max-width: 460px;
-      background: rgba(17, 24, 39, 0.55);
-      border: 1px dashed rgba(255,255,255,.15);
-      border-radius: 20px;
-      padding: 22px;
-    }
-
-    .empty-card h2 {
-      margin: 0 0 6px;
-      font-size: 22px;
-    }
-
-    .empty-card p {
-      margin: 0;
-      line-height: 1.45;
+    .empty-watermark {
+      width: min(25%, 260px);
+      min-width: 120px;
+      height: auto;
+      opacity: .3;
+      object-fit: contain;
+      user-select: none;
+      pointer-events: none;
     }
 
     dialog {
@@ -703,11 +693,13 @@
       color: var(--text);
       border-radius: 12px;
       cursor: pointer;
-      min-height: 98px;
+      min-height: 104px;
       padding: 10px 8px;
       display: grid;
-      place-items: center;
-      gap: 6px;
+      grid-template-rows: 1fr auto;
+      justify-items: center;
+      align-items: center;
+      gap: 4px;
       text-align: center;
       transition: transform .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
     }
@@ -724,13 +716,9 @@
     }
 
     .module-tile-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      object-fit: cover;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.10);
-      padding: 4px;
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
     }
 
     .module-tile-name {
@@ -859,10 +847,7 @@
       <div class="main-stage">
         <div class="workspace grid-off" id="workspace"></div>
         <div class="empty-state" id="emptyState">
-          <div class="empty-card">
-            <h2>Virtual DM Screen</h2>
-            <p>Agregá módulos a este panel o abrí el Archivo para restaurar elementos archivados.</p>
-          </div>
+          <img class="empty-watermark" src="logo.svg" alt="">
         </div>
       </div>
 
