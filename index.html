@@ -189,6 +189,20 @@
       outline: none;
     }
 
+    .module-title-edit-input {
+      width: 100%;
+      height: 22px;
+      min-height: 0;
+      border-radius: 7px;
+      padding: 0 6px;
+      border: 1px solid rgba(122,162,255,.35);
+      background: rgba(11,16,32,.95);
+      color: var(--text);
+      outline: none;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
     .btn,
     .icon-btn,
     .chip,
@@ -837,6 +851,8 @@
     const characterContextToggleBtnEl = document.getElementById('characterContextToggleBtn');
     let contextMenuCharacter = null;
     let selectedModuleTypeId = null;
+    let editingPanelId = null;
+    let editingModuleId = null;
 
     function chooseInitialPanelId(screenId) {
       const panels = appState.panels.filter((p) => p.screen_id === screenId);
@@ -1260,12 +1276,50 @@
       });
     }
 
+    async function persistPanelName(panelId, name) {
+      const response = await fetch('api/update_panel_name.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          panel_id: Number(panelId),
+          name
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.panel) {
+        throw new Error('No se pudo persistir el nombre del panel.');
+      }
+      return result.panel;
+    }
+
+    async function persistModuleTitle(moduleId, title) {
+      const response = await fetch('api/update_module_title.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          module_id: Number(moduleId),
+          title
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.module) {
+        throw new Error('No se pudo persistir el título del módulo.');
+      }
+      return result.module;
+    }
+
     function startPanelRename(panelId, tabEl) {
+      if (editingPanelId && editingPanelId !== panelId) return;
       const panel = appState.panels.find((p) => p.panel_id === panelId);
       if (!panel) return;
 
       const currentLabel = tabEl.querySelector('.tab-label');
       if (!currentLabel) return;
+      editingPanelId = panelId;
 
       const input = document.createElement('input');
       input.type = 'text';
@@ -1274,18 +1328,102 @@
       currentLabel.replaceWith(input);
       input.focus();
       input.select();
+      const originalName = panel.name;
+      let finished = false;
 
-      const finish = (commit) => {
-        if (commit) {
-          const nextName = input.value.trim();
-          if (nextName) panel.name = nextName;
+      const finish = async (commit) => {
+        if (finished) return;
+        finished = true;
+        editingPanelId = null;
+        if (!commit) {
+          renderPanelTabs();
+          return;
+        }
+
+        const nextName = input.value.trim();
+        if (!nextName) {
+          renderPanelTabs();
+          return;
+        }
+
+        try {
+          await persistPanelName(panelId, nextName);
+          panel.name = nextName;
+        } catch (error) {
+          panel.name = originalName;
+          console.error('Error al renombrar panel.', error);
         }
         renderPanelTabs();
       };
 
       input.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') finish(true);
-        if (event.key === 'Escape') finish(false);
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          finish(true);
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          finish(false);
+        }
+      });
+
+      input.addEventListener('blur', () => finish(true));
+    }
+
+    function startModuleTitleRename(mod, moduleEl) {
+      if (editingModuleId && editingModuleId !== mod.module_id) return;
+      editingModuleId = mod.module_id;
+
+      const titleEl = moduleEl.querySelector('.module-title');
+      if (!titleEl) {
+        editingModuleId = null;
+        return;
+      }
+
+      const originalTitle = mod.title;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'module-title-edit-input';
+      input.value = mod.title;
+      titleEl.replaceWith(input);
+      input.focus();
+      input.select();
+      let finished = false;
+
+      const finish = async (commit) => {
+        if (finished) return;
+        finished = true;
+        editingModuleId = null;
+        if (!commit) {
+          renderWorkspace();
+          return;
+        }
+
+        const nextTitle = input.value.trim();
+        if (!nextTitle) {
+          renderWorkspace();
+          return;
+        }
+
+        try {
+          await persistModuleTitle(mod.module_id, nextTitle);
+          mod.title = nextTitle;
+        } catch (error) {
+          mod.title = originalTitle;
+          console.error('Error al renombrar módulo.', error);
+        }
+        renderWorkspace();
+      };
+
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          finish(true);
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          finish(false);
+        }
       });
 
       input.addEventListener('blur', () => finish(true));
@@ -1362,6 +1500,11 @@
         applyModuleRect(moduleEl, mod);
         attachDrag(moduleEl, mod);
         attachResize(moduleEl, mod);
+        moduleEl.querySelector('.module-title').addEventListener('dblclick', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          startModuleTitleRename(mod, moduleEl);
+        });
         moduleEl.querySelectorAll('.icon-btn')[0].addEventListener('click', () => {
           if (activePanel && activePanel.is_archive) {
             restoreModule(mod.module_id);
