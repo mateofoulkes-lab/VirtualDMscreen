@@ -974,6 +974,39 @@
       el.style.zIndex = String(next);
     }
 
+    async function saveModuleLayout(mod, moduleEl) {
+      const moduleId = Number(mod.module_id);
+      if (!Number.isFinite(moduleId)) {
+        console.error('module_id inválido para guardar layout.', mod.module_id);
+        return;
+      }
+
+      const payload = {
+        module_id: moduleId,
+        position_x: mod.x,
+        position_y: mod.y,
+        width: mod.width,
+        height: mod.height,
+        z_index: Number(moduleEl.style.zIndex) || 0
+      };
+
+      try {
+        const response = await fetch('api/update_module_layout.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          console.error('No se pudo guardar layout de módulo.', result);
+        }
+      } catch (error) {
+        console.error('Error al guardar layout de módulo.', error);
+      }
+    }
+
     function attachDrag(moduleEl, mod) {
       const header = moduleEl.querySelector('.module-header');
       header.addEventListener('pointerdown', (event) => {
@@ -1004,6 +1037,7 @@
           moduleEl.classList.remove('interacting');
           window.removeEventListener('pointermove', onMove);
           window.removeEventListener('pointerup', onUp);
+          saveModuleLayout(mod, moduleEl);
         };
 
         window.addEventListener('pointermove', onMove);
@@ -1040,6 +1074,7 @@
           moduleEl.classList.remove('interacting');
           window.removeEventListener('pointermove', onMove);
           window.removeEventListener('pointerup', onUp);
+          saveModuleLayout(mod, moduleEl);
         };
 
         window.addEventListener('pointermove', onMove);
