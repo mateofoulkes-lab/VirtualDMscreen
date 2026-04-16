@@ -130,15 +130,16 @@ try {
 
     $insertStmt = $pdo->prepare(
         'INSERT INTO modules
-         (panel_id, type, title, position_x, position_y, width, height, z_index, is_archived, created_at, updated_at)
+         (panel_id, type, title, content, position_x, position_y, width, height, z_index, is_archived, created_at, updated_at)
          VALUES
-         (:panel_id, :type, :title, :position_x, :position_y, :width, :height, :z_index, :is_archived, :created_at, :updated_at)'
+         (:panel_id, :type, :title, :content, :position_x, :position_y, :width, :height, :z_index, :is_archived, :created_at, :updated_at)'
     );
 
     $insertStmt->execute([
         ':panel_id' => $panelId,
         ':type' => $type,
         ':title' => $title,
+        ':content' => '',
         ':position_x' => $positionX,
         ':position_y' => $positionY,
         ':width' => $width,
@@ -152,7 +153,7 @@ try {
     $moduleId = (int) $pdo->lastInsertId();
 
     $moduleStmt = $pdo->prepare(
-        'SELECT id, panel_id, type, title, position_x, position_y, width, height, z_index, is_archived, created_at, updated_at
+        'SELECT id, panel_id, type, title, content, position_x, position_y, width, height, z_index, is_archived, created_at, updated_at
          FROM modules
          WHERE id = :id
          LIMIT 1'

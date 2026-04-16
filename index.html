@@ -583,6 +583,20 @@
       background: #fff;
     }
 
+    .notes-editor {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      resize: none;
+      outline: none;
+      padding: 10px 12px;
+      background: #0d1426;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.35;
+      overflow: auto;
+    }
+
     .resize-handle {
       position: absolute;
       right: 0;
@@ -891,6 +905,7 @@
     let editingPanelId = null;
     let editingModuleId = null;
     let renameContextTarget = null;
+    const contentSaveTimers = new Map();
 
     function chooseInitialPanelId(screenId) {
       const panels = appState.panels.filter((p) => p.screen_id === screenId);
@@ -926,6 +941,7 @@
               panel_id: String(mod.panel_id),
               module_type: mod.type,
               title: mod.title || mod.type,
+              content: typeof mod.content === 'string' ? mod.content : '',
               x: Number(mod.position_x) || 0,
               y: Number(mod.position_y) || 0,
               width: Number(mod.width) || 320,
@@ -1027,6 +1043,38 @@
       } catch (error) {
         console.error('Error al guardar layout de módulo.', error);
       }
+    }
+
+    function scheduleModuleContentSave(mod, content) {
+      mod.content = content;
+      const existingTimer = contentSaveTimers.get(mod.module_id);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+
+      const timerId = setTimeout(async () => {
+        contentSaveTimers.delete(mod.module_id);
+        try {
+          const response = await fetch('api/update_module_content.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              module_id: Number(mod.module_id),
+              content: mod.content
+            })
+          });
+          const result = await response.json();
+          if (!response.ok || !result.success) {
+            console.error('No se pudo guardar contenido del módulo.', result);
+          }
+        } catch (error) {
+          console.error('Error al guardar contenido del módulo.', error);
+        }
+      }, 500);
+
+      contentSaveTimers.set(mod.module_id, timerId);
     }
 
     function attachDrag(moduleEl, mod) {
@@ -1242,6 +1290,7 @@
           panel_id: String(created.panel_id),
           module_type: created.type,
           title: created.title || def.name,
+          content: typeof created.content === 'string' ? created.content : '',
           x: Number(created.position_x) || 0,
           y: Number(created.position_y) || 0,
           width: Number(created.width) || def.defaultW,
@@ -1532,10 +1581,19 @@
             </div>
           </div>
           <div class="module-body">
-            <iframe class="module-frame" src="${def && def.html_path ? def.html_path : 'about:blank'}?module_id=${encodeURIComponent(mod.module_id)}" title="${mod.title}"></iframe>
+            ${mod.module_type === 'notes'
+              ? `<textarea class="notes-editor" spellcheck="false"></textarea>`
+              : `<iframe class="module-frame" src="${def && def.html_path ? def.html_path : 'about:blank'}?module_id=${encodeURIComponent(mod.module_id)}" title="${mod.title}"></iframe>`
+            }
           </div>
           <div class="resize-handle" title="Cambiar tamaño"></div>
         `;
+
+        if (mod.module_type === 'notes') {
+          const notesTextarea = moduleEl.querySelector('.notes-editor');
+          notesTextarea.value = mod.content || '';
+          notesTextarea.addEventListener('input', () => scheduleModuleContentSave(mod, notesTextarea.value));
+        }
 
         applyModuleRect(moduleEl, mod);
         attachDrag(moduleEl, mod);
