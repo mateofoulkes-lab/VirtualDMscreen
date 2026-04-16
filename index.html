@@ -1091,6 +1091,49 @@
       mod.panel_id = archivePanel.panel_id;
       mod.is_archived = 1;
       render();
+      persistModuleArchive(moduleId, archivePanel.panel_id, 1);
+    }
+
+    function restoreModule(moduleId) {
+      const activePanel = getActivePanel();
+      if (!activePanel || !activePanel.is_archive) return;
+      const restorePanel = getPanelsForActiveScreen().find(p => !p.is_archive);
+      const mod = appState.modules.find(m => m.module_id === moduleId);
+      if (!restorePanel || !mod) return;
+      mod.panel_id = restorePanel.panel_id;
+      mod.is_archived = 0;
+      render();
+      persistModuleArchive(moduleId, restorePanel.panel_id, 0);
+    }
+
+    async function persistModuleArchive(moduleId, panelId, isArchived) {
+      const numericModuleId = Number(moduleId);
+      const numericPanelId = Number(panelId);
+      if (!Number.isFinite(numericModuleId) || !Number.isFinite(numericPanelId)) {
+        console.error('IDs inválidos para persistir archivo de módulo.', { moduleId, panelId });
+        return;
+      }
+      const payload = {
+        module_id: numericModuleId,
+        panel_id: numericPanelId,
+        is_archived: isArchived
+      };
+
+      try {
+        const response = await fetch('api/update_module_archive.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          console.error('No se pudo persistir el estado de archivo del módulo.', result);
+        }
+      } catch (error) {
+        console.error('Error al persistir archivo del módulo.', error);
+      }
     }
 
     function deleteModule(moduleId) {
@@ -1329,6 +1372,9 @@
 
       modules.forEach((mod, index) => {
         const def = getModuleDef(mod.module_type);
+        const activePanel = getActivePanel();
+        const archiveActionLabel = activePanel && activePanel.is_archive ? 'Restaurar' : 'Archivar';
+        const archiveActionIcon = activePanel && activePanel.is_archive ? '↩' : '🗄';
         const moduleEl = document.createElement('article');
         moduleEl.className = 'module';
         moduleEl.style.zIndex = String(index + 1);
@@ -1336,7 +1382,7 @@
           <div class="module-header">
             <div class="module-title">${mod.title}</div>
             <div class="module-actions">
-              <button class="icon-btn" title="Archivar">🗄</button>
+              <button class="icon-btn" title="${archiveActionLabel}">${archiveActionIcon}</button>
               <button class="icon-btn danger-soft" title="Cerrar">✕</button>
             </div>
           </div>
@@ -1349,7 +1395,13 @@
         applyModuleRect(moduleEl, mod);
         attachDrag(moduleEl, mod);
         attachResize(moduleEl, mod);
-        moduleEl.querySelectorAll('.icon-btn')[0].addEventListener('click', () => archiveModule(mod.module_id));
+        moduleEl.querySelectorAll('.icon-btn')[0].addEventListener('click', () => {
+          if (activePanel && activePanel.is_archive) {
+            restoreModule(mod.module_id);
+            return;
+          }
+          archiveModule(mod.module_id);
+        });
         moduleEl.querySelectorAll('.icon-btn')[1].addEventListener('click', () => deleteModule(mod.module_id));
         workspaceEl.appendChild(moduleEl);
       });
