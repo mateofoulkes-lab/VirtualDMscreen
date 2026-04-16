@@ -1885,8 +1885,10 @@
 
     document.getElementById('newScreenBtn').addEventListener('click', async () => {
       const suggestedName = `Pantalla ${appState.screens.length + 1}`;
-      const inputName = window.prompt('Nombre de la nueva pantalla:', suggestedName);
-      const nextName = inputName ? inputName.trim() : '';
+      const nextName = await showInputDialog({
+        title: 'Nombre de la nueva pantalla',
+        initialValue: suggestedName
+      });
       if (!nextName) return;
       const payload = { name: nextName };
 
