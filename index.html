@@ -867,6 +867,7 @@
 
   <div class="rename-context-menu" id="renameContextMenu" hidden>
     <button class="rename-context-menu-item" id="renameContextActionBtn" type="button">Renombrar</button>
+    <button class="rename-context-menu-item" id="renameContextDeleteBtn" type="button" hidden>Eliminar panel</button>
   </div>
 
   <div class="app-logo-menu" id="logoAppMenu" hidden>
@@ -921,6 +922,7 @@
     const characterContextToggleBtnEl = document.getElementById('characterContextToggleBtn');
     const renameContextMenuEl = document.getElementById('renameContextMenu');
     const renameContextActionBtnEl = document.getElementById('renameContextActionBtn');
+    const renameContextDeleteBtnEl = document.getElementById('renameContextDeleteBtn');
     const logoMenuBtnEl = document.getElementById('logoMenuBtn');
     const logoAppMenuEl = document.getElementById('logoAppMenu');
     let contextMenuCharacter = null;
@@ -1678,6 +1680,7 @@
       event.stopPropagation();
       closeCharacterContextMenu();
       renameContextTarget = target;
+      renameContextDeleteBtnEl.hidden = target.type !== 'panel';
       renameContextMenuEl.hidden = false;
       renameContextMenuEl.style.left = `${event.clientX}px`;
       renameContextMenuEl.style.top = `${event.clientY}px`;
@@ -1810,6 +1813,26 @@
       render();
     }
 
+    function deletePanelById(panelId) {
+      const panel = appState.panels.find((p) => p.panel_id === panelId);
+      if (!panel || panel.is_archive) return;
+
+      const nonArchivePanels = appState.panels.filter((p) => p.screen_id === panel.screen_id && !p.is_archive);
+      if (nonArchivePanels.length <= 1) {
+        window.alert('Debe haber al menos un panel');
+        return;
+      }
+
+      appState.modules = appState.modules.filter((m) => m.panel_id !== panelId);
+      appState.panels = appState.panels.filter((p) => p.panel_id !== panelId);
+
+      if (appState.activePanelId === panelId) {
+        appState.activePanelId = chooseInitialPanelId(panel.screen_id);
+      }
+
+      render();
+    }
+
     screenSelectEl.addEventListener('change', () => {
       appState.activeScreenId = screenSelectEl.value;
       appState.activePanelId = chooseInitialPanelId(appState.activeScreenId);
@@ -1846,6 +1869,20 @@
       }
       if (renameContextTarget.type === 'module') {
         startModuleTitleRename(renameContextTarget.module, renameContextTarget.moduleEl);
+      }
+      closeRenameContextMenu();
+    });
+
+    renameContextDeleteBtnEl.addEventListener('click', () => {
+      if (!renameContextTarget || renameContextTarget.type !== 'panel') return;
+      const firstConfirm = window.confirm('¿Seguro que querés eliminar este panel?');
+      if (!firstConfirm) {
+        closeRenameContextMenu();
+        return;
+      }
+      const secondConfirm = window.confirm('Se va a borrar TODO lo que hay en este panel. ¿Continuar?');
+      if (secondConfirm) {
+        deletePanelById(renameContextTarget.panelId);
       }
       closeRenameContextMenu();
     });
