@@ -485,6 +485,37 @@
       border-color: rgba(122,162,255,.34);
     }
 
+    .rename-context-menu {
+      position: fixed;
+      z-index: 5000;
+      min-width: 130px;
+      background: rgba(11, 16, 32, 0.98);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px;
+      box-shadow: 0 12px 24px rgba(0,0,0,.45);
+      padding: 5px;
+    }
+
+    .rename-context-menu[hidden] {
+      display: none;
+    }
+
+    .rename-context-menu-item {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 7px 8px;
+      cursor: pointer;
+    }
+
+    .rename-context-menu-item:hover {
+      background: rgba(122,162,255,.16);
+      border-color: rgba(122,162,255,.34);
+    }
+
     .module {
       position: absolute;
       min-width: 180px;
@@ -777,7 +808,7 @@
     </div>
 
     <div class="chrome-bar subbar">
-      <div class="tabs" id="panelTabs" title="Doble click para renombrar panel"></div>
+      <div class="tabs" id="panelTabs"></div>
 
       <button class="btn" id="addPanelBtn">+ Panel</button>
     </div>
@@ -795,7 +826,7 @@
 
       <aside class="sidebar" id="characterSidebar">
         <div class="sidebar-header">
-          <span class="sidebar-header-title">PERSONAJES</span>
+          <span class="sidebar-header-title">PJs</span>
           <button class="icon-btn" id="toggleSidebarSizeBtn" title="Cambiar tamaño">⇄</button>
         </div>
         <div class="sidebar-list" id="sidebarList"></div>
@@ -805,6 +836,10 @@
 
   <div class="character-context-menu" id="characterContextMenu" hidden>
     <button class="character-context-menu-item" id="characterContextToggleBtn" type="button"></button>
+  </div>
+
+  <div class="rename-context-menu" id="renameContextMenu" hidden>
+    <button class="rename-context-menu-item" id="renameContextActionBtn" type="button">Renombrar</button>
   </div>
 
   <dialog id="moduleDialog">
@@ -849,10 +884,13 @@
     const moduleTypeGridEl = document.getElementById('moduleTypeGrid');
     const characterContextMenuEl = document.getElementById('characterContextMenu');
     const characterContextToggleBtnEl = document.getElementById('characterContextToggleBtn');
+    const renameContextMenuEl = document.getElementById('renameContextMenu');
+    const renameContextActionBtnEl = document.getElementById('renameContextActionBtn');
     let contextMenuCharacter = null;
     let selectedModuleTypeId = null;
     let editingPanelId = null;
     let editingModuleId = null;
+    let renameContextTarget = null;
 
     function chooseInitialPanelId(screenId) {
       const panels = appState.panels.filter((p) => p.screen_id === screenId);
@@ -1265,10 +1303,12 @@
         });
 
         if (!panel.is_archive) {
-          btn.addEventListener('dblclick', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            startPanelRename(panel.panel_id, btn);
+          btn.addEventListener('contextmenu', (event) => {
+            openRenameContextMenu(event, {
+              type: 'panel',
+              panelId: panel.panel_id,
+              tabEl: btn
+            });
           });
         }
 
@@ -1500,10 +1540,12 @@
         applyModuleRect(moduleEl, mod);
         attachDrag(moduleEl, mod);
         attachResize(moduleEl, mod);
-        moduleEl.querySelector('.module-title').addEventListener('dblclick', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          startModuleTitleRename(mod, moduleEl);
+        moduleEl.querySelector('.module-header').addEventListener('contextmenu', (event) => {
+          openRenameContextMenu(event, {
+            type: 'module',
+            module: mod,
+            moduleEl
+          });
         });
         moduleEl.querySelectorAll('.icon-btn')[0].addEventListener('click', () => {
           if (activePanel && activePanel.is_archive) {
@@ -1528,6 +1570,21 @@
     function closeCharacterContextMenu() {
       characterContextMenuEl.hidden = true;
       contextMenuCharacter = null;
+    }
+
+    function closeRenameContextMenu() {
+      renameContextMenuEl.hidden = true;
+      renameContextTarget = null;
+    }
+
+    function openRenameContextMenu(event, target) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeCharacterContextMenu();
+      renameContextTarget = target;
+      renameContextMenuEl.hidden = false;
+      renameContextMenuEl.style.left = `${event.clientX}px`;
+      renameContextMenuEl.style.top = `${event.clientY}px`;
     }
 
     function openCharacterContextMenu(event, character) {
@@ -1683,13 +1740,34 @@
       renderSidebar();
     });
 
+    renameContextActionBtnEl.addEventListener('click', () => {
+      if (!renameContextTarget) return;
+      if (renameContextTarget.type === 'panel') {
+        startPanelRename(renameContextTarget.panelId, renameContextTarget.tabEl);
+      }
+      if (renameContextTarget.type === 'module') {
+        startModuleTitleRename(renameContextTarget.module, renameContextTarget.moduleEl);
+      }
+      closeRenameContextMenu();
+    });
+
     document.addEventListener('click', () => {
       closeCharacterContextMenu();
+      closeRenameContextMenu();
     });
 
     document.addEventListener('contextmenu', (event) => {
       if (!event.target.closest('.sidebar-card')) {
         closeCharacterContextMenu();
+      }
+      if (!event.target.closest('.rename-context-menu')) {
+        closeRenameContextMenu();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        closeRenameContextMenu();
       }
     });
 
