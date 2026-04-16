@@ -77,24 +77,23 @@
     }
 
     .brand {
-      display: inline-flex;
+      display: inline-grid;
       align-items: center;
-      gap: 8px;
-      padding: 0 8px;
-      min-width: 0;
-      white-space: nowrap;
-      font-weight: 700;
-      letter-spacing: .2px;
+      justify-items: center;
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px;
+      background: var(--panel-2);
+      cursor: pointer;
     }
 
-    .brand-mark {
-      width: 24px;
-      height: 24px;
-      border-radius: 8px;
-      background: linear-gradient(180deg, rgba(122,162,255,.35), rgba(122,162,255,.12));
-      border: 1px solid rgba(122,162,255,.42);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
-      flex: 0 0 auto;
+    .brand img {
+      width: 42px;
+      height: 42px;
+      object-fit: contain;
+      pointer-events: none;
     }
 
     .screen-switcher,
@@ -516,6 +515,37 @@
       border-color: rgba(122,162,255,.34);
     }
 
+    .app-logo-menu {
+      position: fixed;
+      z-index: 5000;
+      min-width: 220px;
+      background: rgba(11, 16, 32, 0.98);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px;
+      box-shadow: 0 12px 24px rgba(0,0,0,.45);
+      padding: 5px;
+    }
+
+    .app-logo-menu[hidden] {
+      display: none;
+    }
+
+    .app-logo-menu-item {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 7px 8px;
+      cursor: pointer;
+    }
+
+    .app-logo-menu-item:hover {
+      background: rgba(122,162,255,.16);
+      border-color: rgba(122,162,255,.34);
+    }
+
     .module {
       position: absolute;
       min-width: 180px;
@@ -790,16 +820,14 @@
 <body>
   <div class="app">
     <div class="chrome-bar topbar">
-      <div class="brand">
-        <div class="brand-mark"></div>
-        <span>Virtual DM Screen</span>
-      </div>
+      <button class="brand" id="logoMenuBtn" title="App" type="button">
+        <img src="logo.svg" alt="App">
+      </button>
 
       <div class="screen-switcher toolbar-group">
         <label for="screenSelect">Pantalla</label>
         <select id="screenSelect"></select>
         <button class="icon-btn" id="newScreenBtn" title="Nueva pantalla">＋</button>
-        <button class="icon-btn danger-soft" id="deleteScreenBtn" title="Eliminar pantalla">🗑</button>
       </div>
 
       <div class="toolbar-group">
@@ -856,6 +884,14 @@
     <button class="rename-context-menu-item" id="renameContextActionBtn" type="button">Renombrar</button>
   </div>
 
+  <div class="app-logo-menu" id="logoAppMenu" hidden>
+    <button class="app-logo-menu-item" data-action="rename-screen" type="button">Renombrar pantalla actual</button>
+    <button class="app-logo-menu-item" data-action="delete-screen" type="button">Eliminar pantalla actual</button>
+    <button class="app-logo-menu-item" data-action="edit-modules" type="button">Editar módulos disponibles</button>
+    <button class="app-logo-menu-item" data-action="export-screen" type="button">Exportar pantalla</button>
+    <button class="app-logo-menu-item" data-action="import-screen" type="button">Importar pantalla</button>
+  </div>
+
   <dialog id="moduleDialog">
     <div class="dialog-inner">
       <h3>Agregar módulo</h3>
@@ -900,6 +936,8 @@
     const characterContextToggleBtnEl = document.getElementById('characterContextToggleBtn');
     const renameContextMenuEl = document.getElementById('renameContextMenu');
     const renameContextActionBtnEl = document.getElementById('renameContextActionBtn');
+    const logoMenuBtnEl = document.getElementById('logoMenuBtn');
+    const logoAppMenuEl = document.getElementById('logoAppMenu');
     let contextMenuCharacter = null;
     let selectedModuleTypeId = null;
     let editingPanelId = null;
@@ -1635,6 +1673,21 @@
       renameContextTarget = null;
     }
 
+    function closeLogoAppMenu() {
+      logoAppMenuEl.hidden = true;
+    }
+
+    function openLogoAppMenuFromEvent(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeCharacterContextMenu();
+      closeRenameContextMenu();
+      const rect = logoMenuBtnEl.getBoundingClientRect();
+      logoAppMenuEl.hidden = false;
+      logoAppMenuEl.style.left = `${rect.left}px`;
+      logoAppMenuEl.style.top = `${rect.bottom + 8}px`;
+    }
+
     function openRenameContextMenu(event, target) {
       event.preventDefault();
       event.stopPropagation();
@@ -1716,8 +1769,11 @@
     });
 
     document.getElementById('newScreenBtn').addEventListener('click', async () => {
-      const n = appState.screens.length + 1;
-      const payload = { name: `Pantalla ${n}` };
+      const suggestedName = `Pantalla ${appState.screens.length + 1}`;
+      const inputName = window.prompt('Nombre de la nueva pantalla:', suggestedName);
+      const nextName = inputName ? inputName.trim() : '';
+      if (!nextName) return;
+      const payload = { name: nextName };
 
       try {
         const response = await fetch('api/create_screen.php', {
@@ -1758,7 +1814,7 @@
       }
     });
 
-    document.getElementById('deleteScreenBtn').addEventListener('click', () => {
+    function deleteActiveScreen() {
       if (appState.screens.length <= 1 || !appState.activeScreenId) return;
       const currentId = appState.activeScreenId;
       appState.modules = appState.modules.filter(m => !appState.panels.some(p => p.panel_id === m.panel_id && p.screen_id === currentId));
@@ -1767,7 +1823,7 @@
       appState.activeScreenId = appState.screens[0]?.screen_id ?? null;
       appState.activePanelId = appState.activeScreenId ? chooseInitialPanelId(appState.activeScreenId) : null;
       render();
-    });
+    }
 
     screenSelectEl.addEventListener('change', () => {
       appState.activeScreenId = screenSelectEl.value;
@@ -1809,9 +1865,53 @@
       closeRenameContextMenu();
     });
 
+    logoMenuBtnEl.addEventListener('click', openLogoAppMenuFromEvent);
+    logoMenuBtnEl.addEventListener('contextmenu', openLogoAppMenuFromEvent);
+
+    logoAppMenuEl.addEventListener('click', (event) => {
+      const menuItem = event.target.closest('.app-logo-menu-item');
+      if (!menuItem) return;
+      const action = menuItem.dataset.action;
+
+      if (action === 'rename-screen') {
+        const activeScreen = appState.screens.find((s) => s.screen_id === appState.activeScreenId);
+        if (activeScreen) {
+          const inputName = window.prompt('Nuevo nombre de la pantalla actual:', activeScreen.name);
+          const nextName = inputName ? inputName.trim() : '';
+          if (nextName) {
+            activeScreen.name = nextName;
+            renderScreenSelect();
+          }
+        }
+      }
+
+      if (action === 'delete-screen') {
+        const firstConfirm = window.confirm('¿Seguro que querés eliminar la pantalla actual?');
+        if (firstConfirm) {
+          const secondConfirm = window.confirm('Esta acción eliminará TODO lo que hay dentro de la pantalla actual. ¿Continuar?');
+          if (secondConfirm) {
+            deleteActiveScreen();
+          }
+        }
+      }
+
+      if (action === 'edit-modules') {
+        console.info('TODO: editar módulos disponibles.');
+      }
+      if (action === 'export-screen') {
+        console.info('TODO: exportar pantalla.');
+      }
+      if (action === 'import-screen') {
+        console.info('TODO: importar pantalla.');
+      }
+
+      closeLogoAppMenu();
+    });
+
     document.addEventListener('click', () => {
       closeCharacterContextMenu();
       closeRenameContextMenu();
+      closeLogoAppMenu();
     });
 
     document.addEventListener('contextmenu', (event) => {
@@ -1821,11 +1921,15 @@
       if (!event.target.closest('.rename-context-menu')) {
         closeRenameContextMenu();
       }
+      if (!event.target.closest('.app-logo-menu') && !event.target.closest('#logoMenuBtn')) {
+        closeLogoAppMenu();
+      }
     });
 
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         closeRenameContextMenu();
+        closeLogoAppMenu();
       }
     });
 
