@@ -743,27 +743,6 @@
         <button class="icon-btn danger-soft" id="deleteScreenBtn" title="Eliminar pantalla">🗑</button>
       </div>
 
-      <div class="toolbar-group compact-hide menu-anchor">
-        <button class="btn" id="screenMenuBtn">Pantalla ▾</button>
-        <div class="menu-dropdown" id="screenMenu">
-          <button class="menu-item" data-action="rename-screen">Renombrar pantalla</button>
-          <button class="menu-item" data-action="duplicate-screen">Duplicar pantalla</button>
-          <button class="menu-item" data-action="screen-settings">Opciones de pantalla</button>
-        </div>
-      </div>
-
-      <div class="toolbar-group compact-hide menu-anchor">
-        <button class="btn" id="appMenuBtn">App ▾</button>
-        <div class="menu-dropdown" id="appMenu">
-          <button class="menu-item" data-action="open-screen-manager">Administrador de pantallas</button>
-          <button class="menu-item" data-action="open-campaigns">Campañas</button>
-          <button class="menu-item" data-action="open-module-library">Módulos disponibles</button>
-          <button class="menu-item" data-action="import-module">Importar nuevo módulo</button>
-          <button class="menu-item" data-action="backup-export">Exportar respaldo</button>
-          <button class="menu-item" data-action="backup-import">Importar respaldo</button>
-        </div>
-      </div>
-
       <div class="toolbar-group">
         <label for="gridSize">Grilla</label>
         <select id="gridSize">
@@ -786,13 +765,7 @@
     <div class="chrome-bar subbar">
       <div class="tabs" id="panelTabs" title="Doble click para renombrar panel"></div>
 
-      <div class="status-group toolbar-group">
-        <span class="chip" id="saveStatusChip">Autosave</span>
-        <span class="chip" id="screenInfoChip">0 módulos</span>
-      </div>
-
       <button class="btn" id="addPanelBtn">+ Panel</button>
-      <button class="btn" id="archiveTabBtn">Archivo</button>
     </div>
 
     <div class="shell">
@@ -858,13 +831,8 @@
     const panelTabsEl = document.getElementById('panelTabs');
     const sidebarListEl = document.getElementById('sidebarList');
     const gridSizeEl = document.getElementById('gridSize');
-    const screenInfoChipEl = document.getElementById('screenInfoChip');
     const moduleDialogEl = document.getElementById('moduleDialog');
     const moduleTypeGridEl = document.getElementById('moduleTypeGrid');
-    const appMenuBtnEl = document.getElementById('appMenuBtn');
-    const appMenuEl = document.getElementById('appMenu');
-    const screenMenuBtnEl = document.getElementById('screenMenuBtn');
-    const screenMenuEl = document.getElementById('screenMenu');
     const characterContextMenuEl = document.getElementById('characterContextMenu');
     const characterContextToggleBtnEl = document.getElementById('characterContextToggleBtn');
     let contextMenuCharacter = null;
@@ -1361,7 +1329,6 @@
       workspaceEl.innerHTML = '';
       const modules = getModulesForActivePanel();
       emptyStateEl.style.display = modules.length ? 'none' : 'grid';
-      screenInfoChipEl.textContent = `${modules.length} módulo${modules.length === 1 ? '' : 's'}`;
 
       if (appState.gridSize === 0) {
         workspaceEl.classList.add('grid-off');
@@ -1413,11 +1380,6 @@
       renderSidebar();
       renderWorkspace();
       gridSizeEl.value = String(appState.gridSize);
-    }
-
-    function closeMenus() {
-      appMenuEl.classList.remove('open');
-      screenMenuEl.classList.remove('open');
     }
 
     function closeCharacterContextMenu() {
@@ -1493,13 +1455,6 @@
       } catch (error) {
         console.error('Error al crear panel en backend.', error);
       }
-    });
-
-    document.getElementById('archiveTabBtn').addEventListener('click', () => {
-      const archive = appState.panels.find(p => p.screen_id === appState.activeScreenId && p.is_archive);
-      if (!archive) return;
-      appState.activePanelId = archive.panel_id;
-      render();
     });
 
     document.getElementById('newScreenBtn').addEventListener('click', async () => {
@@ -1585,31 +1540,7 @@
       renderSidebar();
     });
 
-    appMenuBtnEl.addEventListener('click', (event) => {
-      event.stopPropagation();
-      const open = appMenuEl.classList.contains('open');
-      closeMenus();
-      if (!open) appMenuEl.classList.add('open');
-    });
-
-    appMenuEl.addEventListener('click', (event) => {
-      const menuItem = event.target.closest('.menu-item');
-      if (!menuItem) return;
-      if (menuItem.dataset.action === 'import-module') {
-        console.info('TODO: implementar importación de nuevo módulo.');
-      }
-      closeMenus();
-    });
-
-    screenMenuBtnEl.addEventListener('click', (event) => {
-      event.stopPropagation();
-      const open = screenMenuEl.classList.contains('open');
-      closeMenus();
-      if (!open) screenMenuEl.classList.add('open');
-    });
-
     document.addEventListener('click', () => {
-      closeMenus();
       closeCharacterContextMenu();
     });
 
