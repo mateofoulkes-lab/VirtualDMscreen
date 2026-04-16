@@ -18,7 +18,7 @@ $panels = $pdo->query(
 )->fetchAll(PDO::FETCH_ASSOC);
 
 $modules = $pdo->query(
-    'SELECT id, panel_id, type, title, position_x, position_y, width, height, z_index, is_archived, created_at, updated_at
+    'SELECT id, panel_id, type, title, content, position_x, position_y, width, height, z_index, is_archived, created_at, updated_at
      FROM modules
      ORDER BY panel_id ASC, z_index ASC, id ASC'
 )->fetchAll(PDO::FETCH_ASSOC);
