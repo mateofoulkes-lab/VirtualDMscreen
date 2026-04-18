@@ -1432,13 +1432,24 @@
       panelTabsEl.innerHTML = '';
       const panels = getPanelsForActiveScreen();
       panels.forEach((panel) => {
-        const btn = document.createElement('button');
+        const btn = document.createElement('div');
         btn.className = `tab ${panel.panel_id === appState.activePanelId ? 'active' : ''} ${panel.is_archive ? 'system' : ''}`;
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('tabindex', '0');
+        btn.setAttribute('aria-selected', panel.panel_id === appState.activePanelId ? 'true' : 'false');
         btn.innerHTML = `<span class="tab-label">${panel.name}</span>`;
         btn.addEventListener('click', () => {
           if (editingPanelId) return;
           appState.activePanelId = panel.panel_id;
           render();
+        });
+        btn.addEventListener('keydown', (event) => {
+          if (editingPanelId) return;
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            appState.activePanelId = panel.panel_id;
+            render();
+          }
         });
 
         if (!panel.is_archive) {
@@ -1521,7 +1532,6 @@
       tabEl.addEventListener('pointerdown', stopTabActivationWhileEditing, true);
       tabEl.addEventListener('mousedown', stopTabActivationWhileEditing, true);
       tabEl.addEventListener('click', stopTabActivationWhileEditing, true);
-      tabEl.addEventListener('keydown', stopTabActivationWhileEditing, true);
 
       const finish = async (commit) => {
         if (finished) return;
@@ -1530,7 +1540,6 @@
         tabEl.removeEventListener('pointerdown', stopTabActivationWhileEditing, true);
         tabEl.removeEventListener('mousedown', stopTabActivationWhileEditing, true);
         tabEl.removeEventListener('click', stopTabActivationWhileEditing, true);
-        tabEl.removeEventListener('keydown', stopTabActivationWhileEditing, true);
         if (!commit) {
           renderPanelTabs();
           return;
