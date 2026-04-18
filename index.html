@@ -1436,6 +1436,7 @@
         btn.className = `tab ${panel.panel_id === appState.activePanelId ? 'active' : ''} ${panel.is_archive ? 'system' : ''}`;
         btn.innerHTML = `<span class="tab-label">${panel.name}</span>`;
         btn.addEventListener('click', () => {
+          if (editingPanelId) return;
           appState.activePanelId = panel.panel_id;
           render();
         });
@@ -1511,11 +1512,25 @@
       const stopPointerPropagation = (event) => {
         event.stopPropagation();
       };
+      const stopTabActivationWhileEditing = (event) => {
+        if (editingPanelId !== panelId) return;
+        event.preventDefault();
+        event.stopPropagation();
+      };
+
+      tabEl.addEventListener('pointerdown', stopTabActivationWhileEditing, true);
+      tabEl.addEventListener('mousedown', stopTabActivationWhileEditing, true);
+      tabEl.addEventListener('click', stopTabActivationWhileEditing, true);
+      tabEl.addEventListener('keydown', stopTabActivationWhileEditing, true);
 
       const finish = async (commit) => {
         if (finished) return;
         finished = true;
         editingPanelId = null;
+        tabEl.removeEventListener('pointerdown', stopTabActivationWhileEditing, true);
+        tabEl.removeEventListener('mousedown', stopTabActivationWhileEditing, true);
+        tabEl.removeEventListener('click', stopTabActivationWhileEditing, true);
+        tabEl.removeEventListener('keydown', stopTabActivationWhileEditing, true);
         if (!commit) {
           renderPanelTabs();
           return;
