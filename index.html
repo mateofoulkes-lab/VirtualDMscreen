@@ -2150,6 +2150,7 @@
 
     renameContextDeleteBtnEl.addEventListener('click', async () => {
       if (!renameContextTarget || renameContextTarget.type !== 'panel') return;
+      const panelIdToDelete = renameContextTarget.panelId;
       const firstConfirm = await showConfirmDialog({
         title: 'Eliminar panel',
         message: '¿Seguro que querés eliminar este panel?'
@@ -2163,7 +2164,7 @@
         message: 'Se va a borrar TODO lo que hay en este panel. ¿Continuar?'
       });
       if (secondConfirm) {
-        await deletePanelById(renameContextTarget.panelId);
+        await deletePanelById(panelIdToDelete);
       }
       closeRenameContextMenu();
     });
