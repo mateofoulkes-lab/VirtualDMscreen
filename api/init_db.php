@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/import_names.php';
 
 function initializeDatabase(PDO $pdo): void
 {
@@ -72,6 +73,17 @@ function initializeDatabase(PDO $pdo): void
             is_native INTEGER NOT NULL DEFAULT 1,
             created_at TEXT,
             updated_at TEXT
+        )'
+    );
+
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS name_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL,
+            race TEXT NULL,
+            gender TEXT NULL,
+            value TEXT NOT NULL,
+            created_at TEXT
         )'
     );
 
@@ -150,8 +162,8 @@ function initializeDatabase(PDO $pdo): void
             'code' => 'name_generator_quick',
             'name' => 'Nombres rápidos',
             'html_path' => 'modules/name-generator-quick/index.html',
-            'default_width' => 360,
-            'default_height' => 260,
+            'default_width' => 420,
+            'default_height' => 300,
             'is_native' => 1,
         ],
         [
@@ -175,11 +187,31 @@ function initializeDatabase(PDO $pdo): void
         'SELECT id FROM module_definitions WHERE code = :code LIMIT 1'
     );
 
+    $updateDefinition = $pdo->prepare(
+        'UPDATE module_definitions
+         SET name = :name,
+             html_path = :html_path,
+             default_width = :default_width,
+             default_height = :default_height,
+             is_native = :is_native,
+             updated_at = :updated_at
+         WHERE id = :id'
+    );
+
     foreach ($moduleDefinitions as $definition) {
         $findDefinition->execute([':code' => $definition['code']]);
         $existingId = $findDefinition->fetchColumn();
 
         if ($existingId !== false) {
+            $updateDefinition->execute([
+                ':id' => (int) $existingId,
+                ':name' => $definition['name'],
+                ':html_path' => $definition['html_path'],
+                ':default_width' => $definition['default_width'],
+                ':default_height' => $definition['default_height'],
+                ':is_native' => $definition['is_native'],
+                ':updated_at' => date('c'),
+            ]);
             continue;
         }
 
@@ -195,6 +227,8 @@ function initializeDatabase(PDO $pdo): void
             ':updated_at' => $now,
         ]);
     }
+
+    importNamesDataset($pdo);
 }
 
 $pdo = getDatabaseConnection();
