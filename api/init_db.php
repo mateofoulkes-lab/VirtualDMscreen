@@ -35,6 +35,7 @@ function initializeDatabase(PDO $pdo): void
             panel_id INTEGER NOT NULL,
             type TEXT NOT NULL,
             title TEXT NOT NULL,
+            content TEXT DEFAULT \'\',
             position_x INTEGER,
             position_y INTEGER,
             width INTEGER,
@@ -46,6 +47,19 @@ function initializeDatabase(PDO $pdo): void
             FOREIGN KEY (panel_id) REFERENCES panels(id)
         )'
     );
+
+    $moduleColumns = $pdo->query('PRAGMA table_info(modules)')->fetchAll(PDO::FETCH_ASSOC);
+    $hasContentColumn = false;
+    foreach ($moduleColumns as $column) {
+        if (($column['name'] ?? '') === 'content') {
+            $hasContentColumn = true;
+            break;
+        }
+    }
+
+    if (!$hasContentColumn) {
+        $pdo->exec('ALTER TABLE modules ADD COLUMN content TEXT DEFAULT \'\'');
+    }
 
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS module_definitions (

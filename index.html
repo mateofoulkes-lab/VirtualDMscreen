@@ -77,24 +77,23 @@
     }
 
     .brand {
-      display: inline-flex;
+      display: inline-grid;
       align-items: center;
-      gap: 8px;
-      padding: 0 8px;
-      min-width: 0;
-      white-space: nowrap;
-      font-weight: 700;
-      letter-spacing: .2px;
+      justify-items: center;
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px;
+      background: var(--panel-2);
+      cursor: pointer;
     }
 
-    .brand-mark {
-      width: 24px;
-      height: 24px;
-      border-radius: 8px;
-      background: linear-gradient(180deg, rgba(122,162,255,.35), rgba(122,162,255,.12));
-      border: 1px solid rgba(122,162,255,.42);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
-      flex: 0 0 auto;
+    .brand img {
+      width: 42px;
+      height: 42px;
+      object-fit: contain;
+      pointer-events: none;
     }
 
     .screen-switcher,
@@ -187,6 +186,20 @@
       background: rgba(11,16,32,.95);
       color: var(--text);
       outline: none;
+    }
+
+    .module-title-edit-input {
+      width: 100%;
+      height: 22px;
+      min-height: 0;
+      border-radius: 7px;
+      padding: 0 6px;
+      border: 1px solid rgba(122,162,255,.35);
+      background: rgba(11,16,32,.95);
+      color: var(--text);
+      outline: none;
+      font-size: 13px;
+      font-weight: 700;
     }
 
     .btn,
@@ -471,6 +484,68 @@
       border-color: rgba(122,162,255,.34);
     }
 
+    .rename-context-menu {
+      position: fixed;
+      z-index: 5000;
+      min-width: 130px;
+      background: rgba(11, 16, 32, 0.98);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px;
+      box-shadow: 0 12px 24px rgba(0,0,0,.45);
+      padding: 5px;
+    }
+
+    .rename-context-menu[hidden] {
+      display: none;
+    }
+
+    .rename-context-menu-item {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 7px 8px;
+      cursor: pointer;
+    }
+
+    .rename-context-menu-item:hover {
+      background: rgba(122,162,255,.16);
+      border-color: rgba(122,162,255,.34);
+    }
+
+    .app-logo-menu {
+      position: fixed;
+      z-index: 5000;
+      min-width: 220px;
+      background: rgba(11, 16, 32, 0.98);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px;
+      box-shadow: 0 12px 24px rgba(0,0,0,.45);
+      padding: 5px;
+    }
+
+    .app-logo-menu[hidden] {
+      display: none;
+    }
+
+    .app-logo-menu-item {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 7px 8px;
+      cursor: pointer;
+    }
+
+    .app-logo-menu-item:hover {
+      background: rgba(122,162,255,.16);
+      border-color: rgba(122,162,255,.34);
+    }
+
     .module {
       position: absolute;
       min-width: 180px;
@@ -538,6 +613,20 @@
       background: #fff;
     }
 
+    .notes-editor {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      resize: none;
+      outline: none;
+      padding: 10px 12px;
+      background: #0d1426;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.35;
+      overflow: auto;
+    }
+
     .resize-handle {
       position: absolute;
       right: 0;
@@ -556,28 +645,18 @@
       inset: 0;
       display: grid;
       place-items: center;
-      text-align: center;
-      color: var(--muted);
       padding: 20px;
       pointer-events: none;
     }
 
-    .empty-card {
-      max-width: 460px;
-      background: rgba(17, 24, 39, 0.55);
-      border: 1px dashed rgba(255,255,255,.15);
-      border-radius: 20px;
-      padding: 22px;
-    }
-
-    .empty-card h2 {
-      margin: 0 0 6px;
-      font-size: 22px;
-    }
-
-    .empty-card p {
-      margin: 0;
-      line-height: 1.45;
+    .empty-watermark {
+      width: min(25%, 260px);
+      min-width: 120px;
+      height: auto;
+      opacity: .3;
+      object-fit: contain;
+      user-select: none;
+      pointer-events: none;
     }
 
     dialog {
@@ -600,11 +679,63 @@
     .dialog-inner p { margin: 0 0 14px; color: var(--muted); }
     .field { display: grid; gap: 7px; margin-bottom: 14px; }
     .field label { font-size: 13px; color: var(--muted); }
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .module-tile {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,.08);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 12px;
+      cursor: pointer;
+      min-height: 104px;
+      padding: 10px 8px;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      justify-items: center;
+      align-items: center;
+      gap: 4px;
+      text-align: center;
+      transition: transform .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+
+    .module-tile:hover {
+      transform: translateY(-1px);
+      background: var(--panel-3);
+    }
+
+    .module-tile.selected {
+      background: linear-gradient(180deg, rgba(122,162,255,.30), rgba(122,162,255,.12));
+      border-color: rgba(122,162,255,.55);
+      box-shadow: inset 0 0 0 1px rgba(122,162,255,.32);
+    }
+
+    .module-tile-icon {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+    }
+
+    .module-tile-name {
+      font-size: 12px;
+      line-height: 1.2;
+      color: var(--text);
+    }
+
     .dialog-actions {
       display: flex;
       justify-content: flex-end;
       gap: 8px;
       padding: 0 18px 18px;
+    }
+
+    .dialog-actions.start {
+      justify-content: flex-start;
     }
 
     .menu-anchor { position: relative; }
@@ -681,36 +812,14 @@
 <body>
   <div class="app">
     <div class="chrome-bar topbar">
-      <div class="brand">
-        <div class="brand-mark"></div>
-        <span>Virtual DM Screen</span>
-      </div>
+      <button class="brand" id="logoMenuBtn" title="App" type="button">
+        <img src="logo.svg" alt="App">
+      </button>
 
       <div class="screen-switcher toolbar-group">
         <label for="screenSelect">Pantalla</label>
         <select id="screenSelect"></select>
         <button class="icon-btn" id="newScreenBtn" title="Nueva pantalla">＋</button>
-        <button class="icon-btn danger-soft" id="deleteScreenBtn" title="Eliminar pantalla">🗑</button>
-      </div>
-
-      <div class="toolbar-group compact-hide menu-anchor">
-        <button class="btn" id="screenMenuBtn">Pantalla ▾</button>
-        <div class="menu-dropdown" id="screenMenu">
-          <button class="menu-item" data-action="rename-screen">Renombrar pantalla</button>
-          <button class="menu-item" data-action="duplicate-screen">Duplicar pantalla</button>
-          <button class="menu-item" data-action="screen-settings">Opciones de pantalla</button>
-        </div>
-      </div>
-
-      <div class="toolbar-group compact-hide menu-anchor">
-        <button class="btn" id="appMenuBtn">App ▾</button>
-        <div class="menu-dropdown" id="appMenu">
-          <button class="menu-item" data-action="open-screen-manager">Administrador de pantallas</button>
-          <button class="menu-item" data-action="open-campaigns">Campañas</button>
-          <button class="menu-item" data-action="open-module-library">Módulos disponibles</button>
-          <button class="menu-item" data-action="backup-export">Exportar respaldo</button>
-          <button class="menu-item" data-action="backup-import">Importar respaldo</button>
-        </div>
       </div>
 
       <div class="toolbar-group">
@@ -733,31 +842,22 @@
     </div>
 
     <div class="chrome-bar subbar">
-      <div class="tabs" id="panelTabs" title="Doble click para renombrar panel"></div>
-
-      <div class="status-group toolbar-group">
-        <span class="chip" id="saveStatusChip">Autosave</span>
-        <span class="chip" id="screenInfoChip">0 módulos</span>
-      </div>
+      <div class="tabs" id="panelTabs"></div>
 
       <button class="btn" id="addPanelBtn">+ Panel</button>
-      <button class="btn" id="archiveTabBtn">Archivo</button>
     </div>
 
     <div class="shell">
       <div class="main-stage">
         <div class="workspace grid-off" id="workspace"></div>
         <div class="empty-state" id="emptyState">
-          <div class="empty-card">
-            <h2>Virtual DM Screen</h2>
-            <p>Agregá módulos a este panel o abrí el Archivo para restaurar elementos archivados.</p>
-          </div>
+          <img class="empty-watermark" src="logo.svg" alt="">
         </div>
       </div>
 
       <aside class="sidebar" id="characterSidebar">
         <div class="sidebar-header">
-          <span class="sidebar-header-title">PERSONAJES</span>
+          <span class="sidebar-header-title">PJs</span>
           <button class="icon-btn" id="toggleSidebarSizeBtn" title="Cambiar tamaño">⇄</button>
         </div>
         <div class="sidebar-list" id="sidebarList"></div>
@@ -769,18 +869,55 @@
     <button class="character-context-menu-item" id="characterContextToggleBtn" type="button"></button>
   </div>
 
+  <div class="rename-context-menu" id="renameContextMenu" hidden>
+    <button class="rename-context-menu-item" id="renameContextActionBtn" type="button">Renombrar</button>
+    <button class="rename-context-menu-item" id="renameContextDeleteBtn" type="button" hidden>Eliminar panel</button>
+  </div>
+
+  <div class="app-logo-menu" id="logoAppMenu" hidden>
+    <button class="app-logo-menu-item" data-action="rename-screen" type="button">Renombrar pantalla actual</button>
+    <button class="app-logo-menu-item" data-action="delete-screen" type="button">Eliminar pantalla actual</button>
+    <button class="app-logo-menu-item" data-action="edit-modules" type="button">Editar módulos disponibles</button>
+    <button class="app-logo-menu-item" data-action="export-screen" type="button">Exportar pantalla</button>
+    <button class="app-logo-menu-item" data-action="import-screen" type="button">Importar pantalla</button>
+  </div>
+
   <dialog id="moduleDialog">
     <div class="dialog-inner">
       <h3>Agregar módulo</h3>
       <p>Seleccioná el tipo de módulo que querés crear en el panel activo.</p>
       <div class="field">
-        <label for="moduleType">Tipo de módulo</label>
-        <select id="moduleType"></select>
+        <label>Tipo de módulo</label>
+        <div class="module-grid" id="moduleTypeGrid"></div>
       </div>
     </div>
     <div class="dialog-actions">
       <button class="btn" id="cancelModuleBtn">Cancelar</button>
       <button class="btn primary" id="confirmModuleBtn">Agregar</button>
+    </div>
+  </dialog>
+
+  <dialog id="confirmDialog">
+    <div class="dialog-inner">
+      <h3 id="confirmDialogTitle"></h3>
+      <p id="confirmDialogMessage"></p>
+    </div>
+    <div class="dialog-actions" id="confirmDialogActions">
+      <button class="btn" id="confirmDialogCancelBtn">Cancelar</button>
+      <button class="btn primary" id="confirmDialogOkBtn">Confirmar</button>
+    </div>
+  </dialog>
+
+  <dialog id="inputDialog">
+    <div class="dialog-inner">
+      <h3 id="inputDialogTitle"></h3>
+      <div class="field">
+        <input type="text" id="inputDialogField">
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn" id="inputDialogCancelBtn">Cancelar</button>
+      <button class="btn primary" id="inputDialogSaveBtn">Guardar</button>
     </div>
   </dialog>
 
@@ -807,16 +944,32 @@
     const panelTabsEl = document.getElementById('panelTabs');
     const sidebarListEl = document.getElementById('sidebarList');
     const gridSizeEl = document.getElementById('gridSize');
-    const screenInfoChipEl = document.getElementById('screenInfoChip');
     const moduleDialogEl = document.getElementById('moduleDialog');
-    const moduleTypeEl = document.getElementById('moduleType');
-    const appMenuBtnEl = document.getElementById('appMenuBtn');
-    const appMenuEl = document.getElementById('appMenu');
-    const screenMenuBtnEl = document.getElementById('screenMenuBtn');
-    const screenMenuEl = document.getElementById('screenMenu');
+    const moduleTypeGridEl = document.getElementById('moduleTypeGrid');
+    const confirmDialogEl = document.getElementById('confirmDialog');
+    const confirmDialogTitleEl = document.getElementById('confirmDialogTitle');
+    const confirmDialogMessageEl = document.getElementById('confirmDialogMessage');
+    const confirmDialogActionsEl = document.getElementById('confirmDialogActions');
+    const confirmDialogCancelBtnEl = document.getElementById('confirmDialogCancelBtn');
+    const confirmDialogOkBtnEl = document.getElementById('confirmDialogOkBtn');
+    const inputDialogEl = document.getElementById('inputDialog');
+    const inputDialogTitleEl = document.getElementById('inputDialogTitle');
+    const inputDialogFieldEl = document.getElementById('inputDialogField');
+    const inputDialogCancelBtnEl = document.getElementById('inputDialogCancelBtn');
+    const inputDialogSaveBtnEl = document.getElementById('inputDialogSaveBtn');
     const characterContextMenuEl = document.getElementById('characterContextMenu');
     const characterContextToggleBtnEl = document.getElementById('characterContextToggleBtn');
+    const renameContextMenuEl = document.getElementById('renameContextMenu');
+    const renameContextActionBtnEl = document.getElementById('renameContextActionBtn');
+    const renameContextDeleteBtnEl = document.getElementById('renameContextDeleteBtn');
+    const logoMenuBtnEl = document.getElementById('logoMenuBtn');
+    const logoAppMenuEl = document.getElementById('logoAppMenu');
     let contextMenuCharacter = null;
+    let selectedModuleTypeId = null;
+    let editingPanelId = null;
+    let editingModuleId = null;
+    let renameContextTarget = null;
+    const contentSaveTimers = new Map();
 
     function chooseInitialPanelId(screenId) {
       const panels = appState.panels.filter((p) => p.screen_id === screenId);
@@ -852,6 +1005,7 @@
               panel_id: String(mod.panel_id),
               module_type: mod.type,
               title: mod.title || mod.type,
+              content: typeof mod.content === 'string' ? mod.content : '',
               x: Number(mod.position_x) || 0,
               y: Number(mod.position_y) || 0,
               width: Number(mod.width) || 320,
@@ -862,7 +1016,6 @@
 
         appState.moduleDefinitions = Array.isArray(payload.module_definitions)
           ? payload.module_definitions.map((def) => ({
-              id: def.code,
               code: def.code,
               name: def.name || def.code,
               html: def.html_path || '',
@@ -894,8 +1047,8 @@
       return appState.modules.filter((m) => m.panel_id === appState.activePanelId);
     }
 
-    function getModuleDef(type) {
-      return appState.moduleDefinitions.find((m) => m.id === type) || null;
+    function getModuleDef(typeCode) {
+      return appState.moduleDefinitions.find((m) => m.code === typeCode) || null;
     }
 
     function snap(value) {
@@ -923,10 +1076,77 @@
       el.style.zIndex = String(next);
     }
 
+    async function saveModuleLayout(mod, moduleEl) {
+      const moduleId = Number(mod.module_id);
+      if (!Number.isFinite(moduleId)) {
+        console.error('module_id inválido para guardar layout.', mod.module_id);
+        return;
+      }
+
+      const payload = {
+        module_id: moduleId,
+        position_x: mod.x,
+        position_y: mod.y,
+        width: mod.width,
+        height: mod.height,
+        z_index: Number(moduleEl.style.zIndex) || 0
+      };
+
+      try {
+        const response = await fetch('api/update_module_layout.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          console.error('No se pudo guardar layout de módulo.', result);
+        }
+      } catch (error) {
+        console.error('Error al guardar layout de módulo.', error);
+      }
+    }
+
+    function scheduleModuleContentSave(mod, content) {
+      mod.content = content;
+      const existingTimer = contentSaveTimers.get(mod.module_id);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+
+      const timerId = setTimeout(async () => {
+        contentSaveTimers.delete(mod.module_id);
+        try {
+          const response = await fetch('api/update_module_content.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              module_id: Number(mod.module_id),
+              content: mod.content
+            })
+          });
+          const result = await response.json();
+          if (!response.ok || !result.success) {
+            console.error('No se pudo guardar contenido del módulo.', result);
+          }
+        } catch (error) {
+          console.error('Error al guardar contenido del módulo.', error);
+        }
+      }, 500);
+
+      contentSaveTimers.set(mod.module_id, timerId);
+    }
+
     function attachDrag(moduleEl, mod) {
       const header = moduleEl.querySelector('.module-header');
       header.addEventListener('pointerdown', (event) => {
         if (event.target.closest('.module-actions')) return;
+        if (event.target.closest('.module-title-edit-input')) return;
+        if (editingModuleId === mod.module_id) return;
         event.preventDefault();
         moduleEl.classList.add('dragging');
         moduleEl.classList.add('interacting');
@@ -953,6 +1173,7 @@
           moduleEl.classList.remove('interacting');
           window.removeEventListener('pointermove', onMove);
           window.removeEventListener('pointerup', onUp);
+          saveModuleLayout(mod, moduleEl);
         };
 
         window.addEventListener('pointermove', onMove);
@@ -989,6 +1210,7 @@
           moduleEl.classList.remove('interacting');
           window.removeEventListener('pointermove', onMove);
           window.removeEventListener('pointerup', onUp);
+          saveModuleLayout(mod, moduleEl);
         };
 
         window.addEventListener('pointermove', onMove);
@@ -1005,9 +1227,75 @@
       mod.panel_id = archivePanel.panel_id;
       mod.is_archived = 1;
       render();
+      persistModuleArchive(moduleId, archivePanel.panel_id, 1);
     }
 
-    function deleteModule(moduleId) {
+    function restoreModule(moduleId) {
+      const activePanel = getActivePanel();
+      if (!activePanel || !activePanel.is_archive) return;
+      const restorePanel = getPanelsForActiveScreen().find(p => !p.is_archive);
+      const mod = appState.modules.find(m => m.module_id === moduleId);
+      if (!restorePanel || !mod) return;
+      mod.panel_id = restorePanel.panel_id;
+      mod.is_archived = 0;
+      render();
+      persistModuleArchive(moduleId, restorePanel.panel_id, 0);
+    }
+
+    async function persistModuleArchive(moduleId, panelId, isArchived) {
+      const numericModuleId = Number(moduleId);
+      const numericPanelId = Number(panelId);
+      if (!Number.isFinite(numericModuleId) || !Number.isFinite(numericPanelId)) {
+        console.error('IDs inválidos para persistir archivo de módulo.', { moduleId, panelId });
+        return;
+      }
+      const payload = {
+        module_id: numericModuleId,
+        panel_id: numericPanelId,
+        is_archived: isArchived
+      };
+
+      try {
+        const response = await fetch('api/update_module_archive.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          console.error('No se pudo persistir el estado de archivo del módulo.', result);
+        }
+      } catch (error) {
+        console.error('Error al persistir archivo del módulo.', error);
+      }
+    }
+
+    async function deleteModule(moduleId) {
+      const numericModuleId = Number(moduleId);
+      if (!Number.isFinite(numericModuleId)) return;
+
+      try {
+        const response = await fetch('api/delete_module.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            module_id: numericModuleId
+          })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          console.error('No se pudo eliminar el módulo.', result);
+          return;
+        }
+      } catch (error) {
+        console.error('Error al eliminar módulo en backend.', error);
+        return;
+      }
+
       const idx = appState.modules.findIndex(m => m.module_id === moduleId);
       if (idx >= 0) {
         appState.modules.splice(idx, 1);
@@ -1015,36 +1303,93 @@
       }
     }
 
-    function openModuleDialog() {
-      moduleTypeEl.innerHTML = '';
-      appState.moduleDefinitions.forEach((item) => {
-        const option = document.createElement('option');
-        option.value = item.id;
-        option.textContent = item.name;
-        moduleTypeEl.appendChild(option);
+    function deriveModuleIconPath(htmlPath) {
+      if (!htmlPath) return '';
+      const parts = htmlPath.split('/');
+      if (parts.length <= 1) return 'icon.png';
+      parts[parts.length - 1] = 'icon.png';
+      return parts.join('/');
+    }
+
+    function setSelectedModuleType(typeCode) {
+      selectedModuleTypeId = typeCode;
+      moduleTypeGridEl.querySelectorAll('.module-tile').forEach((tile) => {
+        tile.classList.toggle('selected', tile.dataset.type === typeCode);
       });
+    }
+
+    function openModuleDialog() {
+      moduleTypeGridEl.innerHTML = '';
+      appState.moduleDefinitions.forEach((item) => {
+        const tile = document.createElement('button');
+        tile.type = 'button';
+        tile.className = 'module-tile';
+        tile.dataset.type = item.code;
+        tile.innerHTML = `
+          <img class="module-tile-icon" src="${deriveModuleIconPath(item.html_path)}" alt="">
+          <span class="module-tile-name">${item.name}</span>
+        `;
+        tile.addEventListener('click', () => setSelectedModuleType(item.code));
+        moduleTypeGridEl.appendChild(tile);
+      });
+      const firstType = appState.moduleDefinitions[0]?.code ?? null;
+      setSelectedModuleType(selectedModuleTypeId && getModuleDef(selectedModuleTypeId) ? selectedModuleTypeId : firstType);
       moduleDialogEl.showModal();
     }
 
-    function addModule(type) {
-      const def = getModuleDef(type);
+    async function addModule(typeCode) {
+      const def = getModuleDef(typeCode);
       const panel = getActivePanel();
       if (!def || !panel) return;
+      const panelId = Number(panel.panel_id);
+      if (!Number.isFinite(panelId)) {
+        console.error('panel_id inválido para crear módulo.', panel.panel_id);
+        return;
+      }
       const count = getModulesForActivePanel().length;
       const offset = (count % 6) * 24;
-      const mod = {
-        module_id: `mod-${crypto.randomUUID()}`,
-        panel_id: panel.panel_id,
-        module_type: def.id,
+      const payload = {
+        panel_id: panelId,
+        type: def.code,
         title: def.name,
-        x: snap(20 + offset),
-        y: snap(20 + offset),
+        position_x: snap(20 + offset),
+        position_y: snap(20 + offset),
         width: def.defaultW,
-        height: def.defaultH,
-        is_archived: panel.is_archive ? 1 : 0
+        height: def.defaultH
       };
-      appState.modules.push(mod);
-      render();
+
+      try {
+        const response = await fetch('api/create_module.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.success || !result.module) {
+          console.error('No se pudo crear el módulo.', result);
+          return;
+        }
+
+        const created = result.module;
+        appState.modules.push({
+          module_id: String(created.id),
+          panel_id: String(created.panel_id),
+          module_type: created.type,
+          title: created.title || def.name,
+          content: typeof created.content === 'string' ? created.content : '',
+          x: Number(created.position_x) || 0,
+          y: Number(created.position_y) || 0,
+          width: Number(created.width) || def.defaultW,
+          height: Number(created.height) || def.defaultH,
+          is_archived: Number(created.is_archived) ? 1 : 0
+        });
+        render();
+      } catch (error) {
+        console.error('Error al crear módulo en backend.', error);
+      }
     }
 
     function autoArrange() {
@@ -1096,10 +1441,12 @@
         });
 
         if (!panel.is_archive) {
-          btn.addEventListener('dblclick', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            startPanelRename(panel.panel_id, btn);
+          btn.addEventListener('contextmenu', (event) => {
+            openRenameContextMenu(event, {
+              type: 'panel',
+              panelId: panel.panel_id,
+              tabEl: btn
+            });
           });
         }
 
@@ -1107,12 +1454,50 @@
       });
     }
 
+    async function persistPanelName(panelId, name) {
+      const response = await fetch('api/update_panel_name.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          panel_id: Number(panelId),
+          name
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.panel) {
+        throw new Error('No se pudo persistir el nombre del panel.');
+      }
+      return result.panel;
+    }
+
+    async function persistModuleTitle(moduleId, title) {
+      const response = await fetch('api/update_module_title.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          module_id: Number(moduleId),
+          title
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.module) {
+        throw new Error('No se pudo persistir el título del módulo.');
+      }
+      return result.module;
+    }
+
     function startPanelRename(panelId, tabEl) {
+      if (editingPanelId && editingPanelId !== panelId) return;
       const panel = appState.panels.find((p) => p.panel_id === panelId);
       if (!panel) return;
 
       const currentLabel = tabEl.querySelector('.tab-label');
       if (!currentLabel) return;
+      editingPanelId = panelId;
 
       const input = document.createElement('input');
       input.type = 'text';
@@ -1121,19 +1506,125 @@
       currentLabel.replaceWith(input);
       input.focus();
       input.select();
+      const originalName = panel.name;
+      let finished = false;
+      const stopPointerPropagation = (event) => {
+        event.stopPropagation();
+      };
 
-      const finish = (commit) => {
-        if (commit) {
-          const nextName = input.value.trim();
-          if (nextName) panel.name = nextName;
+      const finish = async (commit) => {
+        if (finished) return;
+        finished = true;
+        editingPanelId = null;
+        if (!commit) {
+          renderPanelTabs();
+          return;
+        }
+
+        const nextName = input.value.trim();
+        if (!nextName) {
+          renderPanelTabs();
+          return;
+        }
+
+        try {
+          await persistPanelName(panelId, nextName);
+          panel.name = nextName;
+        } catch (error) {
+          panel.name = originalName;
+          console.error('Error al renombrar panel.', error);
         }
         renderPanelTabs();
       };
 
       input.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') finish(true);
-        if (event.key === 'Escape') finish(false);
+        if (event.key === 'Enter') {
+          event.stopPropagation();
+          event.preventDefault();
+          finish(true);
+          return;
+        }
+        if (event.key === 'Escape') {
+          event.stopPropagation();
+          event.preventDefault();
+          finish(false);
+          return;
+        }
+        event.stopPropagation();
       });
+      input.addEventListener('pointerdown', stopPointerPropagation);
+      input.addEventListener('mousedown', stopPointerPropagation);
+      input.addEventListener('click', stopPointerPropagation);
+
+      input.addEventListener('blur', () => finish(true));
+    }
+
+    function startModuleTitleRename(mod, moduleEl) {
+      if (editingModuleId && editingModuleId !== mod.module_id) return;
+      editingModuleId = mod.module_id;
+
+      const titleEl = moduleEl.querySelector('.module-title');
+      if (!titleEl) {
+        editingModuleId = null;
+        return;
+      }
+
+      const originalTitle = mod.title;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'module-title-edit-input';
+      input.value = mod.title;
+      titleEl.replaceWith(input);
+      input.focus();
+      input.select();
+      let finished = false;
+      const stopPointerPropagation = (event) => {
+        event.stopPropagation();
+      };
+
+      const finish = async (commit) => {
+        if (finished) return;
+        finished = true;
+        editingModuleId = null;
+        if (!commit) {
+          renderWorkspace();
+          return;
+        }
+
+        const nextTitle = input.value.trim();
+        if (!nextTitle) {
+          renderWorkspace();
+          return;
+        }
+
+        try {
+          await persistModuleTitle(mod.module_id, nextTitle);
+          mod.title = nextTitle;
+        } catch (error) {
+          mod.title = originalTitle;
+          console.error('Error al renombrar módulo.', error);
+        }
+        renderWorkspace();
+      };
+
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.stopPropagation();
+          event.preventDefault();
+          finish(true);
+          return;
+        }
+        if (event.key === 'Escape') {
+          event.stopPropagation();
+          event.preventDefault();
+          finish(false);
+          return;
+        }
+        event.stopPropagation();
+      });
+      input.addEventListener('pointerdown', stopPointerPropagation);
+      input.addEventListener('mousedown', stopPointerPropagation);
+      input.addEventListener('click', stopPointerPropagation);
 
       input.addEventListener('blur', () => finish(true));
     }
@@ -1176,7 +1667,6 @@
       workspaceEl.innerHTML = '';
       const modules = getModulesForActivePanel();
       emptyStateEl.style.display = modules.length ? 'none' : 'grid';
-      screenInfoChipEl.textContent = `${modules.length} módulo${modules.length === 1 ? '' : 's'}`;
 
       if (appState.gridSize === 0) {
         workspaceEl.classList.add('grid-off');
@@ -1187,6 +1677,9 @@
 
       modules.forEach((mod, index) => {
         const def = getModuleDef(mod.module_type);
+        const activePanel = getActivePanel();
+        const archiveActionLabel = activePanel && activePanel.is_archive ? 'Restaurar' : 'Archivar';
+        const archiveActionIcon = activePanel && activePanel.is_archive ? '↩' : '🗄';
         const moduleEl = document.createElement('article');
         moduleEl.className = 'module';
         moduleEl.style.zIndex = String(index + 1);
@@ -1194,20 +1687,42 @@
           <div class="module-header">
             <div class="module-title">${mod.title}</div>
             <div class="module-actions">
-              <button class="icon-btn" title="Archivar">🗄</button>
+              <button class="icon-btn" title="${archiveActionLabel}">${archiveActionIcon}</button>
               <button class="icon-btn danger-soft" title="Cerrar">✕</button>
             </div>
           </div>
           <div class="module-body">
-            <iframe class="module-frame" src="${def && def.html_path ? def.html_path : 'about:blank'}?module_id=${encodeURIComponent(mod.module_id)}" title="${mod.title}"></iframe>
+            ${mod.module_type === 'notes'
+              ? `<textarea class="notes-editor" spellcheck="false"></textarea>`
+              : `<iframe class="module-frame" src="${def && def.html_path ? def.html_path : 'about:blank'}?module_id=${encodeURIComponent(mod.module_id)}" title="${mod.title}"></iframe>`
+            }
           </div>
           <div class="resize-handle" title="Cambiar tamaño"></div>
         `;
 
+        if (mod.module_type === 'notes') {
+          const notesTextarea = moduleEl.querySelector('.notes-editor');
+          notesTextarea.value = mod.content || '';
+          notesTextarea.addEventListener('input', () => scheduleModuleContentSave(mod, notesTextarea.value));
+        }
+
         applyModuleRect(moduleEl, mod);
         attachDrag(moduleEl, mod);
         attachResize(moduleEl, mod);
-        moduleEl.querySelectorAll('.icon-btn')[0].addEventListener('click', () => archiveModule(mod.module_id));
+        moduleEl.querySelector('.module-header').addEventListener('contextmenu', (event) => {
+          openRenameContextMenu(event, {
+            type: 'module',
+            module: mod,
+            moduleEl
+          });
+        });
+        moduleEl.querySelectorAll('.icon-btn')[0].addEventListener('click', () => {
+          if (activePanel && activePanel.is_archive) {
+            restoreModule(mod.module_id);
+            return;
+          }
+          archiveModule(mod.module_id);
+        });
         moduleEl.querySelectorAll('.icon-btn')[1].addEventListener('click', () => deleteModule(mod.module_id));
         workspaceEl.appendChild(moduleEl);
       });
@@ -1221,14 +1736,125 @@
       gridSizeEl.value = String(appState.gridSize);
     }
 
-    function closeMenus() {
-      appMenuEl.classList.remove('open');
-      screenMenuEl.classList.remove('open');
-    }
-
     function closeCharacterContextMenu() {
       characterContextMenuEl.hidden = true;
       contextMenuCharacter = null;
+    }
+
+    function closeRenameContextMenu() {
+      renameContextMenuEl.hidden = true;
+      renameContextTarget = null;
+    }
+
+    function closeLogoAppMenu() {
+      logoAppMenuEl.hidden = true;
+    }
+
+    function openLogoAppMenuFromEvent(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeCharacterContextMenu();
+      closeRenameContextMenu();
+      const rect = logoMenuBtnEl.getBoundingClientRect();
+      logoAppMenuEl.hidden = false;
+      logoAppMenuEl.style.left = `${rect.left}px`;
+      logoAppMenuEl.style.top = `${rect.bottom + 8}px`;
+    }
+
+    function openRenameContextMenu(event, target) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeCharacterContextMenu();
+      renameContextTarget = target;
+      renameContextDeleteBtnEl.hidden = target.type !== 'panel';
+      renameContextMenuEl.hidden = false;
+      renameContextMenuEl.style.left = `${event.clientX}px`;
+      renameContextMenuEl.style.top = `${event.clientY}px`;
+    }
+
+    function showConfirmDialog({ title, message, confirmText = 'Confirmar', cancelText = 'Cancelar', showCancel = true }) {
+      return new Promise((resolve) => {
+        confirmDialogTitleEl.textContent = title;
+        confirmDialogMessageEl.textContent = message;
+        confirmDialogOkBtnEl.textContent = confirmText;
+        confirmDialogCancelBtnEl.textContent = cancelText;
+        confirmDialogCancelBtnEl.hidden = !showCancel;
+        confirmDialogActionsEl.classList.toggle('start', !showCancel);
+
+        const cleanup = () => {
+          confirmDialogOkBtnEl.onclick = null;
+          confirmDialogCancelBtnEl.onclick = null;
+          confirmDialogEl.oncancel = null;
+        };
+
+        confirmDialogOkBtnEl.onclick = () => {
+          cleanup();
+          confirmDialogEl.close();
+          resolve(true);
+        };
+
+        confirmDialogCancelBtnEl.onclick = () => {
+          cleanup();
+          confirmDialogEl.close();
+          resolve(false);
+        };
+
+        confirmDialogEl.oncancel = () => {
+          cleanup();
+          resolve(false);
+        };
+
+        confirmDialogEl.showModal();
+      });
+    }
+
+    function showInputDialog({ title, initialValue = '' }) {
+      return new Promise((resolve) => {
+        inputDialogTitleEl.textContent = title;
+        inputDialogFieldEl.value = initialValue;
+
+        const cleanup = () => {
+          inputDialogSaveBtnEl.onclick = null;
+          inputDialogCancelBtnEl.onclick = null;
+          inputDialogFieldEl.onkeydown = null;
+          inputDialogEl.oncancel = null;
+        };
+
+        const save = () => {
+          const value = inputDialogFieldEl.value.trim();
+          cleanup();
+          inputDialogEl.close();
+          resolve(value || null);
+        };
+
+        const cancel = () => {
+          cleanup();
+          inputDialogEl.close();
+          resolve(null);
+        };
+
+        inputDialogSaveBtnEl.onclick = save;
+        inputDialogCancelBtnEl.onclick = cancel;
+        inputDialogFieldEl.onkeydown = (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            save();
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            cancel();
+          }
+        };
+
+        inputDialogEl.oncancel = () => {
+          cleanup();
+          resolve(null);
+        };
+
+        inputDialogEl.showModal();
+        inputDialogFieldEl.focus();
+        inputDialogFieldEl.select();
+      });
     }
 
     function openCharacterContextMenu(event, character) {
@@ -1251,57 +1877,212 @@
     document.getElementById('addModuleBtn').addEventListener('click', openModuleDialog);
     document.getElementById('cancelModuleBtn').addEventListener('click', () => moduleDialogEl.close());
     document.getElementById('confirmModuleBtn').addEventListener('click', () => {
-      addModule(moduleTypeEl.value);
+      const fallbackType = appState.moduleDefinitions[0]?.code ?? null;
+      addModule(selectedModuleTypeId || fallbackType);
       moduleDialogEl.close();
     });
 
     document.getElementById('autoArrangeBtn').addEventListener('click', autoArrange);
 
-    document.getElementById('addPanelBtn').addEventListener('click', () => {
+    document.getElementById('addPanelBtn').addEventListener('click', async () => {
       if (!appState.activeScreenId) return;
+      const screenId = Number(appState.activeScreenId);
+      if (!Number.isFinite(screenId)) {
+        console.error('screen_id inválido para crear panel.', appState.activeScreenId);
+        return;
+      }
       const next = appState.panels.filter(p => p.screen_id === appState.activeScreenId && !p.is_archive).length + 1;
-      const panel = {
-        panel_id: `panel-${crypto.randomUUID()}`,
-        screen_id: appState.activeScreenId,
-        name: `Panel ${next}`,
-        is_archive: 0
+      const payload = {
+        screen_id: screenId,
+        name: `Panel ${next}`
       };
-      const archive = appState.panels.find(p => p.screen_id === appState.activeScreenId && p.is_archive);
-      const idx = archive ? appState.panels.indexOf(archive) : appState.panels.length;
-      appState.panels.splice(idx, 0, panel);
-      appState.activePanelId = panel.panel_id;
-      render();
+
+      try {
+        const response = await fetch('api/create_panel.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.success || !result.panel) {
+          console.error('No se pudo crear el panel.', result);
+          return;
+        }
+
+        const panel = result.panel;
+        appState.panels.push({
+          panel_id: String(panel.id),
+          screen_id: String(panel.screen_id),
+          name: panel.name || payload.name,
+          sort_order: Number(panel.sort_order) || 0,
+          is_archive: Number(panel.is_archive) ? 1 : 0
+        });
+        appState.activePanelId = String(panel.id);
+        render();
+      } catch (error) {
+        console.error('Error al crear panel en backend.', error);
+      }
     });
 
-    document.getElementById('archiveTabBtn').addEventListener('click', () => {
-      const archive = appState.panels.find(p => p.screen_id === appState.activeScreenId && p.is_archive);
-      if (!archive) return;
-      appState.activePanelId = archive.panel_id;
-      render();
+    document.getElementById('newScreenBtn').addEventListener('click', async () => {
+      const suggestedName = `Pantalla ${appState.screens.length + 1}`;
+      const nextName = await showInputDialog({
+        title: 'Nombre de la nueva pantalla',
+        initialValue: suggestedName
+      });
+      if (!nextName) return;
+      const payload = { name: nextName };
+
+      try {
+        const response = await fetch('api/create_screen.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.success || !result.screen || !Array.isArray(result.panels)) {
+          console.error('No se pudo crear la pantalla.', result);
+          return;
+        }
+
+        const screen = result.screen;
+        appState.screens.push({
+          screen_id: String(screen.id),
+          name: screen.name || payload.name
+        });
+
+        result.panels.forEach((panel) => {
+          appState.panels.push({
+            panel_id: String(panel.id),
+            screen_id: String(panel.screen_id),
+            name: panel.name || 'Panel',
+            sort_order: Number(panel.sort_order) || 0,
+            is_archive: Number(panel.is_archive) ? 1 : 0
+          });
+        });
+
+        appState.activeScreenId = String(screen.id);
+        appState.activePanelId = chooseInitialPanelId(appState.activeScreenId);
+        render();
+      } catch (error) {
+        console.error('Error al crear pantalla en backend.', error);
+      }
     });
 
-    document.getElementById('newScreenBtn').addEventListener('click', () => {
-      const n = appState.screens.length + 1;
-      const screenId = `screen-${crypto.randomUUID()}`;
-      appState.screens.push({ screen_id: screenId, name: `Pantalla ${n}` });
-      appState.panels.push({ panel_id: `panel-${crypto.randomUUID()}`, screen_id: screenId, name: 'Panel 1', is_archive: 0 });
-      const archiveId = `panel-${crypto.randomUUID()}`;
-      appState.panels.push({ panel_id: archiveId, screen_id: screenId, name: 'Archivo', is_archive: 1 });
-      appState.activeScreenId = screenId;
-      appState.activePanelId = chooseInitialPanelId(screenId);
-      render();
-    });
+    async function renameActiveScreen(nextName) {
+      if (!appState.activeScreenId) return false;
+      const response = await fetch('api/update_screen_name.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          screen_id: Number(appState.activeScreenId),
+          name: nextName
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.screen) {
+        throw new Error('No se pudo renombrar la pantalla.');
+      }
 
-    document.getElementById('deleteScreenBtn').addEventListener('click', () => {
-      if (appState.screens.length <= 1 || !appState.activeScreenId) return;
+      const activeScreen = appState.screens.find((s) => s.screen_id === appState.activeScreenId);
+      if (activeScreen) {
+        activeScreen.name = result.screen.name || nextName;
+      }
+      renderScreenSelect();
+      return true;
+    }
+
+    async function deleteActiveScreen() {
+      if (appState.screens.length <= 1 || !appState.activeScreenId) {
+        await showConfirmDialog({
+          title: 'No se puede eliminar',
+          message: 'Debe haber al menos una pantalla',
+          confirmText: 'Entendido',
+          showCancel: false
+        });
+        return;
+      }
       const currentId = appState.activeScreenId;
+      try {
+        const response = await fetch('api/delete_screen.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            screen_id: Number(currentId)
+          })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          console.error('No se pudo eliminar la pantalla.', result);
+          return;
+        }
+      } catch (error) {
+        console.error('Error al eliminar pantalla en backend.', error);
+        return;
+      }
+
       appState.modules = appState.modules.filter(m => !appState.panels.some(p => p.panel_id === m.panel_id && p.screen_id === currentId));
       appState.panels = appState.panels.filter(p => p.screen_id !== currentId);
       appState.screens = appState.screens.filter(s => s.screen_id !== currentId);
       appState.activeScreenId = appState.screens[0]?.screen_id ?? null;
       appState.activePanelId = appState.activeScreenId ? chooseInitialPanelId(appState.activeScreenId) : null;
       render();
-    });
+    }
+
+    async function deletePanelById(panelId) {
+      const panel = appState.panels.find((p) => p.panel_id === panelId);
+      if (!panel || panel.is_archive) return;
+
+      const nonArchivePanels = appState.panels.filter((p) => p.screen_id === panel.screen_id && !p.is_archive);
+      if (nonArchivePanels.length <= 1) {
+        await showConfirmDialog({
+          title: 'No se puede eliminar',
+          message: 'Debe haber al menos un panel',
+          confirmText: 'Entendido',
+          showCancel: false
+        });
+        return;
+      }
+
+      try {
+        const response = await fetch('api/delete_panel.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            panel_id: Number(panelId)
+          })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          console.error('No se pudo eliminar el panel.', result);
+          return;
+        }
+      } catch (error) {
+        console.error('Error al eliminar panel en backend.', error);
+        return;
+      }
+
+      appState.modules = appState.modules.filter((m) => m.panel_id !== panelId);
+      appState.panels = appState.panels.filter((p) => p.panel_id !== panelId);
+
+      if (appState.activePanelId === panelId) {
+        appState.activePanelId = chooseInitialPanelId(panel.screen_id);
+      }
+
+      render();
+    }
 
     screenSelectEl.addEventListener('change', () => {
       appState.activeScreenId = screenSelectEl.value;
@@ -1332,28 +2113,119 @@
       renderSidebar();
     });
 
-    appMenuBtnEl.addEventListener('click', (event) => {
-      event.stopPropagation();
-      const open = appMenuEl.classList.contains('open');
-      closeMenus();
-      if (!open) appMenuEl.classList.add('open');
+    renameContextActionBtnEl.addEventListener('click', () => {
+      if (!renameContextTarget) return;
+      if (renameContextTarget.type === 'panel') {
+        startPanelRename(renameContextTarget.panelId, renameContextTarget.tabEl);
+      }
+      if (renameContextTarget.type === 'module') {
+        startModuleTitleRename(renameContextTarget.module, renameContextTarget.moduleEl);
+      }
+      closeRenameContextMenu();
     });
 
-    screenMenuBtnEl.addEventListener('click', (event) => {
-      event.stopPropagation();
-      const open = screenMenuEl.classList.contains('open');
-      closeMenus();
-      if (!open) screenMenuEl.classList.add('open');
+    renameContextDeleteBtnEl.addEventListener('click', async () => {
+      if (!renameContextTarget || renameContextTarget.type !== 'panel') return;
+      const firstConfirm = await showConfirmDialog({
+        title: 'Eliminar panel',
+        message: '¿Seguro que querés eliminar este panel?'
+      });
+      if (!firstConfirm) {
+        closeRenameContextMenu();
+        return;
+      }
+      const secondConfirm = await showConfirmDialog({
+        title: 'Eliminar panel',
+        message: 'Se va a borrar TODO lo que hay en este panel. ¿Continuar?'
+      });
+      if (secondConfirm) {
+        await deletePanelById(renameContextTarget.panelId);
+      }
+      closeRenameContextMenu();
+    });
+
+    logoMenuBtnEl.addEventListener('click', openLogoAppMenuFromEvent);
+    logoMenuBtnEl.addEventListener('contextmenu', openLogoAppMenuFromEvent);
+
+    logoAppMenuEl.addEventListener('click', async (event) => {
+      const menuItem = event.target.closest('.app-logo-menu-item');
+      if (!menuItem) return;
+      const action = menuItem.dataset.action;
+
+      if (action === 'rename-screen') {
+        const activeScreen = appState.screens.find((s) => s.screen_id === appState.activeScreenId);
+        const nextName = await showInputDialog({
+          title: 'Renombrar pantalla actual',
+          initialValue: activeScreen?.name || ''
+        });
+        if (nextName) {
+          renameActiveScreen(nextName).catch((error) => {
+            console.error('Error al renombrar pantalla.', error);
+          });
+        }
+      }
+
+      if (action === 'delete-screen') {
+        if (appState.screens.length <= 1) {
+          await showConfirmDialog({
+            title: 'No se puede eliminar',
+            message: 'Debe haber al menos una pantalla',
+            confirmText: 'Entendido',
+            showCancel: false
+          });
+          closeLogoAppMenu();
+          return;
+        }
+        const firstConfirm = await showConfirmDialog({
+          title: 'Eliminar pantalla actual',
+          message: '¿Seguro que querés eliminar esta pantalla?'
+        });
+        if (firstConfirm) {
+          const secondConfirm = await showConfirmDialog({
+            title: 'Eliminar pantalla actual',
+            message: 'Se va a borrar TODO lo que hay en esta pantalla: paneles, módulos y archivo. ¿Continuar?'
+          });
+          if (secondConfirm) {
+            await deleteActiveScreen();
+          }
+        }
+      }
+
+      if (action === 'edit-modules') {
+        console.info('TODO: editar módulos disponibles.');
+      }
+      if (action === 'export-screen') {
+        console.info('TODO: exportar pantalla.');
+      }
+      if (action === 'import-screen') {
+        console.info('TODO: importar pantalla.');
+      }
+
+      closeLogoAppMenu();
     });
 
     document.addEventListener('click', () => {
-      closeMenus();
       closeCharacterContextMenu();
+      closeRenameContextMenu();
+      closeLogoAppMenu();
     });
 
     document.addEventListener('contextmenu', (event) => {
       if (!event.target.closest('.sidebar-card')) {
         closeCharacterContextMenu();
+      }
+      if (!event.target.closest('.rename-context-menu')) {
+        closeRenameContextMenu();
+      }
+      if (!event.target.closest('.app-logo-menu') && !event.target.closest('#logoMenuBtn')) {
+        closeLogoAppMenu();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        closeRenameContextMenu();
+        closeLogoAppMenu();
       }
     });
 
