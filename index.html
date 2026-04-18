@@ -1145,6 +1145,8 @@
       const header = moduleEl.querySelector('.module-header');
       header.addEventListener('pointerdown', (event) => {
         if (event.target.closest('.module-actions')) return;
+        if (event.target.closest('.module-title-edit-input')) return;
+        if (editingModuleId === mod.module_id) return;
         event.preventDefault();
         moduleEl.classList.add('dragging');
         moduleEl.classList.add('interacting');
@@ -1270,7 +1272,30 @@
       }
     }
 
-    function deleteModule(moduleId) {
+    async function deleteModule(moduleId) {
+      const numericModuleId = Number(moduleId);
+      if (!Number.isFinite(numericModuleId)) return;
+
+      try {
+        const response = await fetch('api/delete_module.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            module_id: numericModuleId
+          })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          console.error('No se pudo eliminar el módulo.', result);
+          return;
+        }
+      } catch (error) {
+        console.error('Error al eliminar módulo en backend.', error);
+        return;
+      }
+
       const idx = appState.modules.findIndex(m => m.module_id === moduleId);
       if (idx >= 0) {
         appState.modules.splice(idx, 1);
@@ -1483,6 +1508,9 @@
       input.select();
       const originalName = panel.name;
       let finished = false;
+      const stopPointerPropagation = (event) => {
+        event.stopPropagation();
+      };
 
       const finish = async (commit) => {
         if (finished) return;
@@ -1510,18 +1538,23 @@
       };
 
       input.addEventListener('keydown', (event) => {
-        event.stopPropagation();
         if (event.key === 'Enter') {
+          event.stopPropagation();
           event.preventDefault();
           finish(true);
+          return;
         }
         if (event.key === 'Escape') {
+          event.stopPropagation();
           event.preventDefault();
           finish(false);
+          return;
         }
+        event.stopPropagation();
       });
-      input.addEventListener('keyup', (event) => event.stopPropagation());
-      input.addEventListener('keypress', (event) => event.stopPropagation());
+      input.addEventListener('pointerdown', stopPointerPropagation);
+      input.addEventListener('mousedown', stopPointerPropagation);
+      input.addEventListener('click', stopPointerPropagation);
 
       input.addEventListener('blur', () => finish(true));
     }
@@ -1545,6 +1578,9 @@
       input.focus();
       input.select();
       let finished = false;
+      const stopPointerPropagation = (event) => {
+        event.stopPropagation();
+      };
 
       const finish = async (commit) => {
         if (finished) return;
@@ -1573,14 +1609,22 @@
 
       input.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
+          event.stopPropagation();
           event.preventDefault();
           finish(true);
+          return;
         }
         if (event.key === 'Escape') {
+          event.stopPropagation();
           event.preventDefault();
           finish(false);
+          return;
         }
+        event.stopPropagation();
       });
+      input.addEventListener('pointerdown', stopPointerPropagation);
+      input.addEventListener('mousedown', stopPointerPropagation);
+      input.addEventListener('click', stopPointerPropagation);
 
       input.addEventListener('blur', () => finish(true));
     }
@@ -2007,6 +2051,26 @@
           confirmText: 'Entendido',
           showCancel: false
         });
+        return;
+      }
+
+      try {
+        const response = await fetch('api/delete_panel.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            panel_id: Number(panelId)
+          })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          console.error('No se pudo eliminar el panel.', result);
+          return;
+        }
+      } catch (error) {
+        console.error('Error al eliminar panel en backend.', error);
         return;
       }
 
