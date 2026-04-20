@@ -69,7 +69,7 @@
     }
 
     .topbar {
-      grid-template-columns: auto minmax(220px, 1fr) auto auto auto auto auto;
+      grid-template-columns: auto auto minmax(220px, 1fr) auto auto auto auto;
     }
 
     .subbar {
@@ -229,6 +229,18 @@
     .btn.primary {
       background: linear-gradient(180deg, rgba(122,162,255,.34), rgba(122,162,255,.14));
       border-color: rgba(122,162,255,.48);
+    }
+
+    .btn.save-btn.dirty {
+      background: linear-gradient(180deg, rgba(250, 204, 21, .35), rgba(250, 204, 21, .16));
+      border-color: rgba(250, 204, 21, .65);
+      color: #fff1b8;
+    }
+
+    .btn.save-btn:disabled {
+      opacity: .55;
+      cursor: default;
+      transform: none;
     }
 
     .btn.danger-soft:hover {
@@ -816,6 +828,8 @@
         <img src="logo.svg" alt="App">
       </button>
 
+      <button class="btn save-btn" id="saveWorkspaceBtn" type="button" disabled title="Guardar cambios">💾 Guardar</button>
+
       <div class="screen-switcher toolbar-group">
         <label for="screenSelect">Pantalla</label>
         <select id="screenSelect"></select>
@@ -922,6 +936,18 @@
     </div>
   </dialog>
 
+  <dialog id="unsavedExitDialog">
+    <div class="dialog-inner">
+      <h3>Hay cambios sin guardar</h3>
+      <p>¿Querés guardar los cambios antes de salir?</p>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn primary" id="unsavedExitSaveBtn">Guardar y salir</button>
+      <button class="btn danger-soft" id="unsavedExitDiscardBtn">Salir sin guardar</button>
+      <button class="btn" id="unsavedExitCancelBtn">Cancelar</button>
+    </div>
+  </dialog>
+
   <script>
     const appState = {
       activeScreenId: null,
@@ -958,6 +984,10 @@
     const inputDialogFieldEl = document.getElementById('inputDialogField');
     const inputDialogCancelBtnEl = document.getElementById('inputDialogCancelBtn');
     const inputDialogSaveBtnEl = document.getElementById('inputDialogSaveBtn');
+    const unsavedExitDialogEl = document.getElementById('unsavedExitDialog');
+    const unsavedExitSaveBtnEl = document.getElementById('unsavedExitSaveBtn');
+    const unsavedExitDiscardBtnEl = document.getElementById('unsavedExitDiscardBtn');
+    const unsavedExitCancelBtnEl = document.getElementById('unsavedExitCancelBtn');
     const characterContextMenuEl = document.getElementById('characterContextMenu');
     const characterContextToggleBtnEl = document.getElementById('characterContextToggleBtn');
     const renameContextMenuEl = document.getElementById('renameContextMenu');
@@ -971,7 +1001,12 @@
     let editingPanelId = null;
     let editingModuleId = null;
     let renameContextTarget = null;
-    const contentSaveTimers = new Map();
+    let hasUnsavedChanges = false;
+    let isSavingWorkspace = false;
+    let tempEntityCounter = -1;
+    let allowExit = false;
+    let pendingExitAction = null;
+    let unsavedExitPromptOpen = false;
 
     function chooseInitialPanelId(screenId) {
       const panels = appState.panels.filter((p) => p.screen_id === screenId);
@@ -1078,69 +1113,201 @@
       el.style.zIndex = String(next);
     }
 
-    async function saveModuleLayout(mod, moduleEl) {
-      const moduleId = Number(mod.module_id);
-      if (!Number.isFinite(moduleId)) {
-        console.error('module_id inválido para guardar layout.', mod.module_id);
-        return;
-      }
-
-      const payload = {
-        module_id: moduleId,
-        position_x: mod.x,
-        position_y: mod.y,
-        width: mod.width,
-        height: mod.height,
-        z_index: Number(moduleEl.style.zIndex) || 0
+    function buildWorkspacePayload() {
+      return {
+        screens: appState.screens.map((screen) => ({
+          id: screen.screen_id,
+          name: screen.name
+        })),
+        panels: appState.panels.map((panel, index) => ({
+          id: panel.panel_id,
+          screen_id: panel.screen_id,
+          name: panel.name,
+          sort_order: Number.isFinite(Number(panel.sort_order)) ? Number(panel.sort_order) : index,
+          is_archive: Number(panel.is_archive) ? 1 : 0
+        })),
+        modules: appState.modules.map((mod, index) => ({
+          id: mod.module_id,
+          panel_id: mod.panel_id,
+          type: mod.module_type,
+          title: mod.title,
+          content: typeof mod.content === 'string' ? mod.content : '',
+          position_x: Number(mod.x) || 0,
+          position_y: Number(mod.y) || 0,
+          width: Number(mod.width) || 320,
+          height: Number(mod.height) || 220,
+          z_index: Number.isFinite(Number(mod.z_index)) ? Number(mod.z_index) : index + 1,
+          is_archived: Number(mod.is_archived) ? 1 : 0
+        }))
       };
+    }
 
+    function updateSaveButtonState() {
+      const saveWorkspaceBtnEl = document.getElementById('saveWorkspaceBtn');
+      const isDisabled = isSavingWorkspace || !hasUnsavedChanges;
+      saveWorkspaceBtnEl.disabled = isDisabled;
+      saveWorkspaceBtnEl.classList.toggle('dirty', hasUnsavedChanges);
+      saveWorkspaceBtnEl.textContent = isSavingWorkspace ? 'Guardando…' : '💾 Guardar';
+    }
+
+    function markDirty() {
+      if (hasUnsavedChanges) return;
+      hasUnsavedChanges = true;
+      updateSaveButtonState();
+    }
+
+    function clearDirtyState() {
+      hasUnsavedChanges = false;
+      updateSaveButtonState();
+    }
+
+    function nextTempEntityId(prefix) {
+      tempEntityCounter -= 1;
+      return `${prefix}-${Math.abs(tempEntityCounter)}`;
+    }
+
+    async function saveWorkspace() {
+      if (!hasUnsavedChanges || isSavingWorkspace) return;
+      isSavingWorkspace = true;
+      updateSaveButtonState();
       try {
-        const response = await fetch('api/update_module_layout.php', {
+        const previousActiveScreenId = appState.activeScreenId;
+        const previousActivePanelId = appState.activePanelId;
+        const previousActiveScreen = appState.screens.find((screen) => screen.screen_id === previousActiveScreenId) || null;
+        const previousActivePanel = appState.panels.find((panel) => panel.panel_id === previousActivePanelId) || null;
+
+        const response = await fetch('api/save_workspace.php', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(buildWorkspacePayload())
         });
         const result = await response.json();
         if (!response.ok || !result.success) {
-          console.error('No se pudo guardar layout de módulo.', result);
+          throw new Error(result.error || `HTTP ${response.status}`);
         }
+
+        appState.screens = Array.isArray(result.screens)
+          ? result.screens.map((screen) => ({
+              screen_id: String(screen.id),
+              name: screen.name || `Pantalla ${screen.id}`
+            }))
+          : [];
+        appState.panels = Array.isArray(result.panels)
+          ? result.panels.map((panel) => ({
+              panel_id: String(panel.id),
+              screen_id: String(panel.screen_id),
+              name: panel.name || `Panel ${panel.id}`,
+              sort_order: Number(panel.sort_order) || 0,
+              is_archive: Number(panel.is_archive) ? 1 : 0
+            }))
+          : [];
+        appState.modules = Array.isArray(result.modules)
+          ? result.modules.map((mod) => ({
+              module_id: String(mod.id),
+              panel_id: String(mod.panel_id),
+              module_type: mod.type,
+              title: mod.title || mod.type,
+              content: typeof mod.content === 'string' ? mod.content : '',
+              x: Number(mod.position_x) || 0,
+              y: Number(mod.position_y) || 0,
+              width: Number(mod.width) || 320,
+              height: Number(mod.height) || 220,
+              z_index: Number(mod.z_index) || 0,
+              is_archived: Number(mod.is_archived) ? 1 : 0
+            }))
+          : [];
+
+        const matchedScreen = appState.screens.find((screen) => screen.screen_id === previousActiveScreenId)
+          || appState.screens.find((screen) => previousActiveScreen && screen.name === previousActiveScreen.name)
+          || appState.screens[0]
+          || null;
+        appState.activeScreenId = matchedScreen?.screen_id ?? null;
+
+        const matchedPanel = appState.panels.find((panel) => (
+          panel.panel_id === previousActivePanelId && panel.screen_id === appState.activeScreenId
+        )) || appState.panels.find((panel) => (
+          previousActivePanel
+          && panel.screen_id === appState.activeScreenId
+          && panel.name === previousActivePanel.name
+          && Number(panel.is_archive) === Number(previousActivePanel.is_archive)
+        ));
+
+        if (matchedPanel) {
+          appState.activePanelId = matchedPanel.panel_id;
+        } else {
+          appState.activePanelId = appState.activeScreenId
+            ? chooseInitialPanelId(appState.activeScreenId)
+            : null;
+        }
+
+        clearDirtyState();
+        render();
       } catch (error) {
-        console.error('Error al guardar layout de módulo.', error);
+        console.error('Error al guardar workspace.', error);
+      } finally {
+        isSavingWorkspace = false;
+        updateSaveButtonState();
       }
     }
 
-    function scheduleModuleContentSave(mod, content) {
-      mod.content = content;
-      const existingTimer = contentSaveTimers.get(mod.module_id);
-      if (existingTimer) {
-        clearTimeout(existingTimer);
+    async function showUnsavedExitDialog() {
+      if (unsavedExitPromptOpen) return;
+      unsavedExitPromptOpen = true;
+
+      const decision = await new Promise((resolve) => {
+        const cleanup = () => {
+          unsavedExitSaveBtnEl.onclick = null;
+          unsavedExitDiscardBtnEl.onclick = null;
+          unsavedExitCancelBtnEl.onclick = null;
+          unsavedExitDialogEl.oncancel = null;
+        };
+
+        unsavedExitSaveBtnEl.onclick = () => {
+          cleanup();
+          unsavedExitDialogEl.close();
+          resolve('save');
+        };
+        unsavedExitDiscardBtnEl.onclick = () => {
+          cleanup();
+          unsavedExitDialogEl.close();
+          resolve('discard');
+        };
+        unsavedExitCancelBtnEl.onclick = () => {
+          cleanup();
+          unsavedExitDialogEl.close();
+          resolve('cancel');
+        };
+        unsavedExitDialogEl.oncancel = () => {
+          cleanup();
+          resolve('cancel');
+        };
+
+        unsavedExitDialogEl.showModal();
+      });
+
+      unsavedExitPromptOpen = false;
+
+      if (decision === 'cancel') {
+        pendingExitAction = null;
+        return;
       }
 
-      const timerId = setTimeout(async () => {
-        contentSaveTimers.delete(mod.module_id);
-        try {
-          const response = await fetch('api/update_module_content.php', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              module_id: Number(mod.module_id),
-              content: mod.content
-            })
-          });
-          const result = await response.json();
-          if (!response.ok || !result.success) {
-            console.error('No se pudo guardar contenido del módulo.', result);
-          }
-        } catch (error) {
-          console.error('Error al guardar contenido del módulo.', error);
+      if (decision === 'save') {
+        await saveWorkspace();
+        if (hasUnsavedChanges) {
+          pendingExitAction = null;
+          return;
         }
-      }, 500);
+      }
 
-      contentSaveTimers.set(mod.module_id, timerId);
+      allowExit = true;
+      if (pendingExitAction === 'reload') {
+        window.location.reload();
+      } else {
+        window.close();
+      }
     }
 
     function attachDrag(moduleEl, mod) {
@@ -1158,6 +1325,9 @@
         const workspaceRect = workspaceEl.getBoundingClientRect();
         const startOffsetX = event.clientX - rect.left;
         const startOffsetY = event.clientY - rect.top;
+        const startX = mod.x;
+        const startY = mod.y;
+        const startZIndex = Number(moduleEl.style.zIndex) || 0;
 
         const onMove = (e) => {
           mod.x = e.clientX - workspaceRect.left - startOffsetX;
@@ -1175,7 +1345,13 @@
           moduleEl.classList.remove('interacting');
           window.removeEventListener('pointermove', onMove);
           window.removeEventListener('pointerup', onUp);
-          saveModuleLayout(mod, moduleEl);
+          const newZIndex = Number(moduleEl.style.zIndex) || 0;
+          if (mod.z_index !== newZIndex) {
+            mod.z_index = newZIndex;
+          }
+          if (mod.x !== startX || mod.y !== startY || mod.z_index !== startZIndex) {
+            markDirty();
+          }
         };
 
         window.addEventListener('pointermove', onMove);
@@ -1195,6 +1371,7 @@
         const startY = event.clientY;
         const startW = mod.width;
         const startH = mod.height;
+        const startZIndex = Number(moduleEl.style.zIndex) || 0;
 
         const onMove = (e) => {
           mod.width = Math.max(180, startW + (e.clientX - startX));
@@ -1212,7 +1389,13 @@
           moduleEl.classList.remove('interacting');
           window.removeEventListener('pointermove', onMove);
           window.removeEventListener('pointerup', onUp);
-          saveModuleLayout(mod, moduleEl);
+          const newZIndex = Number(moduleEl.style.zIndex) || 0;
+          if (mod.z_index !== newZIndex) {
+            mod.z_index = newZIndex;
+          }
+          if (mod.width !== startW || mod.height !== startH || mod.z_index !== startZIndex) {
+            markDirty();
+          }
         };
 
         window.addEventListener('pointermove', onMove);
@@ -1229,7 +1412,7 @@
       mod.panel_id = archivePanel.panel_id;
       mod.is_archived = 1;
       render();
-      persistModuleArchive(moduleId, archivePanel.panel_id, 1);
+      markDirty();
     }
 
     function restoreModule(moduleId) {
@@ -1241,66 +1424,14 @@
       mod.panel_id = restorePanel.panel_id;
       mod.is_archived = 0;
       render();
-      persistModuleArchive(moduleId, restorePanel.panel_id, 0);
+      markDirty();
     }
 
-    async function persistModuleArchive(moduleId, panelId, isArchived) {
-      const numericModuleId = Number(moduleId);
-      const numericPanelId = Number(panelId);
-      if (!Number.isFinite(numericModuleId) || !Number.isFinite(numericPanelId)) {
-        console.error('IDs inválidos para persistir archivo de módulo.', { moduleId, panelId });
-        return;
-      }
-      const payload = {
-        module_id: numericModuleId,
-        panel_id: numericPanelId,
-        is_archived: isArchived
-      };
-
-      try {
-        const response = await fetch('api/update_module_archive.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
-        const result = await response.json();
-        if (!response.ok || !result.success) {
-          console.error('No se pudo persistir el estado de archivo del módulo.', result);
-        }
-      } catch (error) {
-        console.error('Error al persistir archivo del módulo.', error);
-      }
-    }
-
-    async function deleteModule(moduleId) {
-      const numericModuleId = Number(moduleId);
-      if (!Number.isFinite(numericModuleId)) return;
-
-      try {
-        const response = await fetch('api/delete_module.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            module_id: numericModuleId
-          })
-        });
-        const result = await response.json();
-        if (!response.ok || !result.success) {
-          console.error('No se pudo eliminar el módulo.', result);
-          return;
-        }
-      } catch (error) {
-        console.error('Error al eliminar módulo en backend.', error);
-        return;
-      }
-
+    function deleteModule(moduleId) {
       const idx = appState.modules.findIndex(m => m.module_id === moduleId);
       if (idx >= 0) {
         appState.modules.splice(idx, 1);
+        markDirty();
         render();
       }
     }
@@ -1339,59 +1470,27 @@
       moduleDialogEl.showModal();
     }
 
-    async function addModule(typeCode) {
+    function addModule(typeCode) {
       const def = getModuleDef(typeCode);
       const panel = getActivePanel();
       if (!def || !panel) return;
-      const panelId = Number(panel.panel_id);
-      if (!Number.isFinite(panelId)) {
-        console.error('panel_id inválido para crear módulo.', panel.panel_id);
-        return;
-      }
       const count = getModulesForActivePanel().length;
       const offset = (count % 6) * 24;
-      const payload = {
-        panel_id: panelId,
-        type: def.code,
+      appState.modules.push({
+        module_id: nextTempEntityId('new-module'),
+        panel_id: String(panel.panel_id),
+        module_type: def.code,
         title: def.name,
-        position_x: snap(20 + offset),
-        position_y: snap(20 + offset),
+        content: '',
+        x: snap(20 + offset),
+        y: snap(20 + offset),
         width: def.defaultW,
-        height: def.defaultH
-      };
-
-      try {
-        const response = await fetch('api/create_module.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
-        const result = await response.json();
-
-        if (!response.ok || !result.success || !result.module) {
-          console.error('No se pudo crear el módulo.', result);
-          return;
-        }
-
-        const created = result.module;
-        appState.modules.push({
-          module_id: String(created.id),
-          panel_id: String(created.panel_id),
-          module_type: created.type,
-          title: created.title || def.name,
-          content: typeof created.content === 'string' ? created.content : '',
-          x: Number(created.position_x) || 0,
-          y: Number(created.position_y) || 0,
-          width: Number(created.width) || def.defaultW,
-          height: Number(created.height) || def.defaultH,
-          is_archived: Number(created.is_archived) ? 1 : 0
-        });
-        render();
-      } catch (error) {
-        console.error('Error al crear módulo en backend.', error);
-      }
+        height: def.defaultH,
+        z_index: count + 1,
+        is_archived: 0
+      });
+      markDirty();
+      render();
     }
 
     function autoArrange() {
@@ -1416,6 +1515,7 @@
         rowH = Math.max(rowH, mod.height);
       });
 
+      markDirty();
       renderWorkspace();
     }
 
@@ -1468,42 +1568,6 @@
       });
     }
 
-    async function persistPanelName(panelId, name) {
-      const response = await fetch('api/update_panel_name.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          panel_id: Number(panelId),
-          name
-        })
-      });
-      const result = await response.json();
-      if (!response.ok || !result.success || !result.panel) {
-        throw new Error('No se pudo persistir el nombre del panel.');
-      }
-      return result.panel;
-    }
-
-    async function persistModuleTitle(moduleId, title) {
-      const response = await fetch('api/update_module_title.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          module_id: Number(moduleId),
-          title
-        })
-      });
-      const result = await response.json();
-      if (!response.ok || !result.success || !result.module) {
-        throw new Error('No se pudo persistir el título del módulo.');
-      }
-      return result.module;
-    }
-
     function startPanelRename(panelId, tabEl) {
       if (editingPanelId && editingPanelId !== panelId) return;
       const panel = appState.panels.find((p) => p.panel_id === panelId);
@@ -1535,7 +1599,7 @@
       tabEl.addEventListener('mousedown', stopTabActivationWhileEditing, true);
       tabEl.addEventListener('click', stopTabActivationWhileEditing, true);
 
-      const finish = async (commit) => {
+      const finish = (commit) => {
         if (finished) return;
         finished = true;
         editingPanelId = null;
@@ -1553,12 +1617,9 @@
           return;
         }
 
-        try {
-          await persistPanelName(panelId, nextName);
-          panel.name = nextName;
-        } catch (error) {
-          panel.name = originalName;
-          console.error('Error al renombrar panel.', error);
+        panel.name = nextName;
+        if (nextName !== originalName) {
+          markDirty();
         }
         renderPanelTabs();
       };
@@ -1608,7 +1669,7 @@
         event.stopPropagation();
       };
 
-      const finish = async (commit) => {
+      const finish = (commit) => {
         if (finished) return;
         finished = true;
         editingModuleId = null;
@@ -1623,12 +1684,9 @@
           return;
         }
 
-        try {
-          await persistModuleTitle(mod.module_id, nextTitle);
-          mod.title = nextTitle;
-        } catch (error) {
-          mod.title = originalTitle;
-          console.error('Error al renombrar módulo.', error);
+        mod.title = nextTitle;
+        if (nextTitle !== originalTitle) {
+          markDirty();
         }
         renderWorkspace();
       };
@@ -1708,7 +1766,9 @@
         const archiveActionIcon = activePanel && activePanel.is_archive ? '↩' : '🗄';
         const moduleEl = document.createElement('article');
         moduleEl.className = 'module';
-        moduleEl.style.zIndex = String(index + 1);
+        const zIndex = Number.isFinite(Number(mod.z_index)) ? Number(mod.z_index) : index + 1;
+        mod.z_index = zIndex;
+        moduleEl.style.zIndex = String(zIndex);
         moduleEl.innerHTML = `
           <div class="module-header">
             <div class="module-title">${mod.title}</div>
@@ -1729,7 +1789,10 @@
         if (mod.module_type === 'notes') {
           const notesTextarea = moduleEl.querySelector('.notes-editor');
           notesTextarea.value = mod.content || '';
-          notesTextarea.addEventListener('input', () => scheduleModuleContentSave(mod, notesTextarea.value));
+          notesTextarea.addEventListener('input', () => {
+            mod.content = notesTextarea.value;
+            markDirty();
+          });
         }
 
         applyModuleRect(moduleEl, mod);
@@ -1911,47 +1974,19 @@
 
     document.getElementById('autoArrangeBtn').addEventListener('click', autoArrange);
 
-    document.getElementById('addPanelBtn').addEventListener('click', async () => {
+    document.getElementById('addPanelBtn').addEventListener('click', () => {
       if (!appState.activeScreenId) return;
-      const screenId = Number(appState.activeScreenId);
-      if (!Number.isFinite(screenId)) {
-        console.error('screen_id inválido para crear panel.', appState.activeScreenId);
-        return;
-      }
       const next = appState.panels.filter(p => p.screen_id === appState.activeScreenId && !p.is_archive).length + 1;
-      const payload = {
-        screen_id: screenId,
-        name: `Panel ${next}`
-      };
-
-      try {
-        const response = await fetch('api/create_panel.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
-        const result = await response.json();
-
-        if (!response.ok || !result.success || !result.panel) {
-          console.error('No se pudo crear el panel.', result);
-          return;
-        }
-
-        const panel = result.panel;
-        appState.panels.push({
-          panel_id: String(panel.id),
-          screen_id: String(panel.screen_id),
-          name: panel.name || payload.name,
-          sort_order: Number(panel.sort_order) || 0,
-          is_archive: Number(panel.is_archive) ? 1 : 0
-        });
-        appState.activePanelId = String(panel.id);
-        render();
-      } catch (error) {
-        console.error('Error al crear panel en backend.', error);
-      }
+      appState.panels.push({
+        panel_id: nextTempEntityId('new-panel'),
+        screen_id: appState.activeScreenId,
+        name: `Panel ${next}`,
+        sort_order: next,
+        is_archive: 0
+      });
+      appState.activePanelId = appState.panels[appState.panels.length - 1].panel_id;
+      markDirty();
+      render();
     });
 
     document.getElementById('newScreenBtn').addEventListener('click', async () => {
@@ -1961,67 +1996,43 @@
         initialValue: suggestedName
       });
       if (!nextName) return;
-      const payload = { name: nextName };
+      const screenId = nextTempEntityId('new-screen');
+      const panelId = nextTempEntityId('new-panel');
+      const archivePanelId = nextTempEntityId('new-panel');
+      appState.screens.push({
+        screen_id: screenId,
+        name: nextName
+      });
+      appState.panels.push({
+        panel_id: panelId,
+        screen_id: screenId,
+        name: 'Panel 1',
+        sort_order: 0,
+        is_archive: 0
+      });
+      appState.panels.push({
+        panel_id: archivePanelId,
+        screen_id: screenId,
+        name: 'Archivo',
+        sort_order: 999,
+        is_archive: 1
+      });
 
-      try {
-        const response = await fetch('api/create_screen.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
-        const result = await response.json();
-
-        if (!response.ok || !result.success || !result.screen || !Array.isArray(result.panels)) {
-          console.error('No se pudo crear la pantalla.', result);
-          return;
-        }
-
-        const screen = result.screen;
-        appState.screens.push({
-          screen_id: String(screen.id),
-          name: screen.name || payload.name
-        });
-
-        result.panels.forEach((panel) => {
-          appState.panels.push({
-            panel_id: String(panel.id),
-            screen_id: String(panel.screen_id),
-            name: panel.name || 'Panel',
-            sort_order: Number(panel.sort_order) || 0,
-            is_archive: Number(panel.is_archive) ? 1 : 0
-          });
-        });
-
-        appState.activeScreenId = String(screen.id);
-        appState.activePanelId = chooseInitialPanelId(appState.activeScreenId);
-        render();
-      } catch (error) {
-        console.error('Error al crear pantalla en backend.', error);
-      }
+      appState.activeScreenId = screenId;
+      appState.activePanelId = panelId;
+      markDirty();
+      render();
     });
 
-    async function renameActiveScreen(nextName) {
+    function renameActiveScreen(nextName) {
       if (!appState.activeScreenId) return false;
-      const response = await fetch('api/update_screen_name.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          screen_id: Number(appState.activeScreenId),
-          name: nextName
-        })
-      });
-      const result = await response.json();
-      if (!response.ok || !result.success || !result.screen) {
-        throw new Error('No se pudo renombrar la pantalla.');
-      }
-
       const activeScreen = appState.screens.find((s) => s.screen_id === appState.activeScreenId);
       if (activeScreen) {
-        activeScreen.name = result.screen.name || nextName;
+        const changed = activeScreen.name !== nextName;
+        activeScreen.name = nextName;
+        if (changed) {
+          markDirty();
+        }
       }
       renderScreenSelect();
       return true;
@@ -2038,31 +2049,13 @@
         return;
       }
       const currentId = appState.activeScreenId;
-      try {
-        const response = await fetch('api/delete_screen.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            screen_id: Number(currentId)
-          })
-        });
-        const result = await response.json();
-        if (!response.ok || !result.success) {
-          console.error('No se pudo eliminar la pantalla.', result);
-          return;
-        }
-      } catch (error) {
-        console.error('Error al eliminar pantalla en backend.', error);
-        return;
-      }
 
       appState.modules = appState.modules.filter(m => !appState.panels.some(p => p.panel_id === m.panel_id && p.screen_id === currentId));
       appState.panels = appState.panels.filter(p => p.screen_id !== currentId);
       appState.screens = appState.screens.filter(s => s.screen_id !== currentId);
       appState.activeScreenId = appState.screens[0]?.screen_id ?? null;
       appState.activePanelId = appState.activeScreenId ? chooseInitialPanelId(appState.activeScreenId) : null;
+      markDirty();
       render();
     }
 
@@ -2081,26 +2074,6 @@
         return;
       }
 
-      try {
-        const response = await fetch('api/delete_panel.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            panel_id: Number(panelId)
-          })
-        });
-        const result = await response.json();
-        if (!response.ok || !result.success) {
-          console.error('No se pudo eliminar el panel.', result);
-          return;
-        }
-      } catch (error) {
-        console.error('Error al eliminar panel en backend.', error);
-        return;
-      }
-
       appState.modules = appState.modules.filter((m) => m.panel_id !== panelId);
       appState.panels = appState.panels.filter((p) => p.panel_id !== panelId);
 
@@ -2108,6 +2081,7 @@
         appState.activePanelId = chooseInitialPanelId(panel.screen_id);
       }
 
+      markDirty();
       render();
     }
 
@@ -2234,9 +2208,7 @@
           initialValue: activeScreen?.name || ''
         });
         if (nextName) {
-          renameActiveScreen(nextName).catch((error) => {
-            console.error('Error al renombrar pantalla.', error);
-          });
+          renameActiveScreen(nextName);
         }
       }
 
@@ -2309,7 +2281,32 @@
       renderWorkspace();
     });
 
-    loadBootstrapData().finally(render);
+    document.getElementById('saveWorkspaceBtn').addEventListener('click', saveWorkspace);
+
+    window.addEventListener('keydown', (event) => {
+      if (!hasUnsavedChanges) return;
+      const wantsReload = event.key === 'F5' || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'r');
+      if (!wantsReload) return;
+      event.preventDefault();
+      pendingExitAction = 'reload';
+      showUnsavedExitDialog();
+    }, true);
+
+    window.addEventListener('beforeunload', (event) => {
+      if (allowExit || !hasUnsavedChanges) return;
+      event.preventDefault();
+      if (!pendingExitAction) {
+        pendingExitAction = 'close';
+      }
+      setTimeout(() => {
+        showUnsavedExitDialog();
+      }, 0);
+    });
+
+    loadBootstrapData().finally(() => {
+      updateSaveButtonState();
+      render();
+    });
   </script>
 </body>
 </html>
