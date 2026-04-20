@@ -1006,9 +1006,6 @@
     let hasUnsavedChanges = false;
     let isSavingWorkspace = false;
     let tempEntityCounter = -1;
-    let allowExit = false;
-    let pendingExitAction = null;
-    let unsavedExitPromptOpen = false;
 
     function chooseInitialPanelId(screenId) {
       const panels = appState.panels.filter((p) => p.screen_id === screenId);
@@ -1251,64 +1248,6 @@
       } finally {
         isSavingWorkspace = false;
         updateSaveButtonState();
-      }
-    }
-
-    async function showUnsavedExitDialog() {
-      if (unsavedExitPromptOpen) return;
-      unsavedExitPromptOpen = true;
-
-      const decision = await new Promise((resolve) => {
-        const cleanup = () => {
-          unsavedExitSaveBtnEl.onclick = null;
-          unsavedExitDiscardBtnEl.onclick = null;
-          unsavedExitCancelBtnEl.onclick = null;
-          unsavedExitDialogEl.oncancel = null;
-        };
-
-        unsavedExitSaveBtnEl.onclick = () => {
-          cleanup();
-          unsavedExitDialogEl.close();
-          resolve('save');
-        };
-        unsavedExitDiscardBtnEl.onclick = () => {
-          cleanup();
-          unsavedExitDialogEl.close();
-          resolve('discard');
-        };
-        unsavedExitCancelBtnEl.onclick = () => {
-          cleanup();
-          unsavedExitDialogEl.close();
-          resolve('cancel');
-        };
-        unsavedExitDialogEl.oncancel = () => {
-          cleanup();
-          resolve('cancel');
-        };
-
-        unsavedExitDialogEl.showModal();
-      });
-
-      unsavedExitPromptOpen = false;
-
-      if (decision === 'cancel') {
-        pendingExitAction = null;
-        return;
-      }
-
-      if (decision === 'save') {
-        await saveWorkspace();
-        if (hasUnsavedChanges) {
-          pendingExitAction = null;
-          return;
-        }
-      }
-
-      allowExit = true;
-      if (pendingExitAction === 'reload') {
-        window.location.reload();
-      } else {
-        window.close();
       }
     }
 
@@ -2285,24 +2224,23 @@
 
     document.getElementById('saveWorkspaceBtn').addEventListener('click', saveWorkspace);
 
-    window.addEventListener('keydown', (event) => {
-      if (!hasUnsavedChanges) return;
-      const wantsReload = event.key === 'F5' || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'r');
-      if (!wantsReload) return;
+    window.addEventListener('keydown', async (event) => {
+      if (event.key !== 'F5') return;
       event.preventDefault();
-      pendingExitAction = 'reload';
-      showUnsavedExitDialog();
+      if (!hasUnsavedChanges) {
+        window.location.reload();
+        return;
+      }
+      await saveWorkspace();
+      if (!hasUnsavedChanges) {
+        window.location.reload();
+      }
     }, true);
 
     window.addEventListener('beforeunload', (event) => {
-      if (allowExit || !hasUnsavedChanges) return;
+      if (!hasUnsavedChanges) return;
       event.preventDefault();
-      if (!pendingExitAction) {
-        pendingExitAction = 'close';
-      }
-      setTimeout(() => {
-        showUnsavedExitDialog();
-      }, 0);
+      event.returnValue = '';
     });
 
     loadBootstrapData().finally(() => {
