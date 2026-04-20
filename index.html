@@ -872,6 +872,7 @@
   <div class="rename-context-menu" id="renameContextMenu" hidden>
     <button class="rename-context-menu-item" id="renameContextActionBtn" type="button">Renombrar</button>
     <button class="rename-context-menu-item" id="renameContextDeleteBtn" type="button" hidden>Eliminar panel</button>
+    <button class="rename-context-menu-item" id="renameContextSaveSizeBtn" type="button" hidden>Guardar tamaño por defecto</button>
   </div>
 
   <div class="app-logo-menu" id="logoAppMenu" hidden>
@@ -962,6 +963,7 @@
     const renameContextMenuEl = document.getElementById('renameContextMenu');
     const renameContextActionBtnEl = document.getElementById('renameContextActionBtn');
     const renameContextDeleteBtnEl = document.getElementById('renameContextDeleteBtn');
+    const renameContextSaveSizeBtnEl = document.getElementById('renameContextSaveSizeBtn');
     const logoMenuBtnEl = document.getElementById('logoMenuBtn');
     const logoAppMenuEl = document.getElementById('logoAppMenu');
     let contextMenuCharacter = null;
@@ -1791,6 +1793,7 @@
       closeCharacterContextMenu();
       renameContextTarget = target;
       renameContextDeleteBtnEl.hidden = target.type !== 'panel';
+      renameContextSaveSizeBtnEl.hidden = target.type !== 'module';
       renameContextMenuEl.hidden = false;
       renameContextMenuEl.style.left = `${event.clientX}px`;
       renameContextMenuEl.style.top = `${event.clientY}px`;
@@ -2137,6 +2140,25 @@
       renderSidebar();
     });
 
+    async function persistModuleDefinitionSize(type, defaultWidth, defaultHeight) {
+      const response = await fetch('api/update_module_definition_size.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type,
+          default_width: defaultWidth,
+          default_height: defaultHeight
+        })
+      });
+
+      const payload = await response.json();
+      if (!response.ok || !payload.success || !payload.module_definition) {
+        throw new Error(payload.error || 'No se pudo guardar el tamaño por defecto.');
+      }
+
+      return payload.module_definition;
+    }
+
     renameContextActionBtnEl.addEventListener('click', () => {
       if (!renameContextTarget) return;
       if (renameContextTarget.type === 'panel') {
@@ -2145,6 +2167,34 @@
       if (renameContextTarget.type === 'module') {
         startModuleTitleRename(renameContextTarget.module, renameContextTarget.moduleEl);
       }
+      closeRenameContextMenu();
+    });
+
+    renameContextSaveSizeBtnEl.addEventListener('click', async () => {
+      if (!renameContextTarget || renameContextTarget.type !== 'module') return;
+
+      const moduleData = renameContextTarget.module;
+      const defaultWidth = Math.round(Number(moduleData.width));
+      const defaultHeight = Math.round(Number(moduleData.height));
+
+      if (!Number.isInteger(defaultWidth) || defaultWidth <= 0 || !Number.isInteger(defaultHeight) || defaultHeight <= 0) {
+        console.error('Invalid module size for default update.', moduleData);
+        closeRenameContextMenu();
+        return;
+      }
+
+      try {
+        const updatedDefinition = await persistModuleDefinitionSize(moduleData.module_type, defaultWidth, defaultHeight);
+        const existingDef = appState.moduleDefinitions.find((item) => item.code === updatedDefinition.code);
+        if (existingDef) {
+          existingDef.defaultW = Number(updatedDefinition.default_width);
+          existingDef.defaultH = Number(updatedDefinition.default_height);
+          existingDef.updated_at = updatedDefinition.updated_at || existingDef.updated_at;
+        }
+      } catch (error) {
+        console.error('Failed to save default module size.', error);
+      }
+
       closeRenameContextMenu();
     });
 
