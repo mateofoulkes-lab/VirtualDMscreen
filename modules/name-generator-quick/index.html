@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nombres rápidos</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111827;
+      --bg-soft: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #60a5fa;
+      --danger: #f87171;
+      --border: rgba(255, 255, 255, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 12px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font-size: 14px;
+    }
+
+    .module {
+      display: grid;
+      gap: 10px;
+    }
+
+    .row {
+      display: grid;
+      gap: 6px;
+    }
+
+    .row.two-cols {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    select,
+    button {
+      width: 100%;
+      height: 34px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-soft);
+      color: var(--text);
+      padding: 0 10px;
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      background: linear-gradient(180deg, rgba(96,165,250,.35), rgba(96,165,250,.12));
+      border-color: rgba(96,165,250,.45);
+      font-weight: 600;
+    }
+
+    button.secondary {
+      background: var(--bg-soft);
+      border-color: var(--border);
+      font-weight: 500;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 100px;
+      gap: 8px;
+    }
+
+    .result {
+      min-height: 88px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 10px;
+      display: grid;
+      gap: 6px;
+      align-content: start;
+    }
+
+    .result-main {
+      font-size: 20px;
+      line-height: 1.2;
+      font-weight: 700;
+      color: #f8fafc;
+      word-break: break-word;
+    }
+
+    .result-meta {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .error {
+      color: var(--danger);
+      font-size: 12px;
+      min-height: 16px;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="module">
+    <div class="row">
+      <label for="categorySelect">Categoría</label>
+      <select id="categorySelect"></select>
+    </div>
+
+    <div id="namesFilters" class="row two-cols">
+      <div class="row">
+        <label for="raceSelect">Raza</label>
+        <select id="raceSelect">
+          <option value="cualquiera">cualquiera</option>
+          <option value="Human" selected>Human</option>
+          <option value="Elf">Elf</option>
+          <option value="Dwarf">Dwarf</option>
+          <option value="Tiefling">Tiefling</option>
+        </select>
+      </div>
+      <div class="row">
+        <label for="genderSelect">Sexo</label>
+        <select id="genderSelect">
+          <option value="cualquiera" selected>cualquiera</option>
+          <option value="male">male</option>
+          <option value="female">female</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="generateBtn" type="button">Generar</button>
+      <button id="copyBtn" class="secondary" type="button">Copiar</button>
+    </div>
+
+    <div class="result">
+      <div id="resultMain" class="result-main">—</div>
+      <div id="resultMeta" class="result-meta"></div>
+    </div>
+
+    <div id="errorBox" class="error"></div>
+  </div>
+
+  <script>
+    const categoryConfig = [
+      { value: 'names', label: 'Nombres', supportsFilters: true }
+      // Futuras categorías: { value: 'towns', label: 'Pueblos', supportsFilters: false }
+      // Futuras categorías: { value: 'taverns', label: 'Tabernas', supportsFilters: false }
+    ];
+
+    const categorySelect = document.getElementById('categorySelect');
+    const namesFilters = document.getElementById('namesFilters');
+    const raceSelect = document.getElementById('raceSelect');
+    const genderSelect = document.getElementById('genderSelect');
+    const generateBtn = document.getElementById('generateBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const resultMain = document.getElementById('resultMain');
+    const resultMeta = document.getElementById('resultMeta');
+    const errorBox = document.getElementById('errorBox');
+
+    function initCategorySelect() {
+      categoryConfig.forEach((item, index) => {
+        const option = document.createElement('option');
+        option.value = item.value;
+        option.textContent = item.label;
+        if (index === 0) {
+          option.selected = true;
+        }
+        categorySelect.appendChild(option);
+      });
+    }
+
+    function updateFiltersVisibility() {
+      const selected = categoryConfig.find((item) => item.value === categorySelect.value);
+      if (selected && selected.supportsFilters) {
+        namesFilters.classList.remove('hidden');
+      } else {
+        namesFilters.classList.add('hidden');
+      }
+    }
+
+    function setError(message) {
+      errorBox.textContent = message || '';
+    }
+
+    function setResult(fullName, race, gender) {
+      resultMain.textContent = fullName || '—';
+      if (race && gender) {
+        resultMeta.textContent = `Raza: ${race} · Sexo: ${gender}`;
+      } else {
+        resultMeta.textContent = '';
+      }
+    }
+
+    async function generateName() {
+      setError('');
+      const category = categorySelect.value;
+      const race = raceSelect.value;
+      const gender = genderSelect.value;
+
+      try {
+        const url = new URL('../../api/random_name.php', window.location.href);
+        url.searchParams.set('category', category);
+        url.searchParams.set('race', race);
+        url.searchParams.set('gender', gender);
+
+        const response = await fetch(url.toString(), { cache: 'no-store' });
+        const payload = await response.json();
+
+        if (!response.ok || !payload.success) {
+          setResult('—', '', '');
+          setError(payload.error || 'No se pudo generar el nombre.');
+          return;
+        }
+
+        const result = payload.result || {};
+        setResult(result.full_name || '—', result.race || '', result.gender || '');
+      } catch (error) {
+        setResult('—', '', '');
+        setError('Error de conexión con el servidor.');
+      }
+    }
+
+    async function copyResult() {
+      const text = resultMain.textContent ? resultMain.textContent.trim() : '';
+      if (!text || text === '—') {
+        setError('No hay nombre para copiar.');
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(text);
+        setError('Copiado al portapapeles.');
+      } catch (error) {
+        setError('No se pudo copiar.');
+      }
+    }
+
+    initCategorySelect();
+    updateFiltersVisibility();
+
+    categorySelect.addEventListener('change', updateFiltersVisibility);
+    generateBtn.addEventListener('click', generateName);
+    copyBtn.addEventListener('click', copyResult);
+  </script>
+</body>
+</html>
