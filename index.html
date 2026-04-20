@@ -828,6 +828,8 @@
         <img src="logo.svg" alt="App">
       </button>
 
+      <button class="btn save-btn" id="saveWorkspaceBtn" type="button" disabled title="Guardar cambios">💾 Guardar</button>
+
       <div class="screen-switcher toolbar-group">
         <label for="screenSelect">Pantalla</label>
         <select id="screenSelect"></select>
@@ -1152,6 +1154,11 @@
       isSavingWorkspace = true;
       updateSaveButtonState();
       try {
+        const previousActiveScreenId = appState.activeScreenId;
+        const previousActivePanelId = appState.activePanelId;
+        const previousActiveScreen = appState.screens.find((screen) => screen.screen_id === previousActiveScreenId) || null;
+        const previousActivePanel = appState.panels.find((panel) => panel.panel_id === previousActivePanelId) || null;
+
         const response = await fetch('api/save_workspace.php', {
           method: 'POST',
           headers: {
@@ -1195,10 +1202,24 @@
             }))
           : [];
 
-        if (!appState.screens.some((screen) => screen.screen_id === appState.activeScreenId)) {
-          appState.activeScreenId = appState.screens[0]?.screen_id ?? null;
-        }
-        if (!appState.panels.some((panel) => panel.panel_id === appState.activePanelId)) {
+        const matchedScreen = appState.screens.find((screen) => screen.screen_id === previousActiveScreenId)
+          || appState.screens.find((screen) => previousActiveScreen && screen.name === previousActiveScreen.name)
+          || appState.screens[0]
+          || null;
+        appState.activeScreenId = matchedScreen?.screen_id ?? null;
+
+        const matchedPanel = appState.panels.find((panel) => (
+          panel.panel_id === previousActivePanelId && panel.screen_id === appState.activeScreenId
+        )) || appState.panels.find((panel) => (
+          previousActivePanel
+          && panel.screen_id === appState.activeScreenId
+          && panel.name === previousActivePanel.name
+          && Number(panel.is_archive) === Number(previousActivePanel.is_archive)
+        ));
+
+        if (matchedPanel) {
+          appState.activePanelId = matchedPanel.panel_id;
+        } else {
           appState.activePanelId = appState.activeScreenId
             ? chooseInitialPanelId(appState.activeScreenId)
             : null;
