@@ -69,7 +69,7 @@
     }
 
     .topbar {
-      grid-template-columns: auto minmax(220px, 1fr) auto auto auto auto auto;
+      grid-template-columns: auto auto minmax(220px, 1fr) auto auto auto auto;
     }
 
     .subbar {
@@ -938,6 +938,18 @@
     </div>
   </dialog>
 
+  <dialog id="unsavedExitDialog">
+    <div class="dialog-inner">
+      <h3>Hay cambios sin guardar</h3>
+      <p>¿Querés guardar los cambios antes de salir?</p>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn primary" id="unsavedExitSaveBtn">Guardar y salir</button>
+      <button class="btn danger-soft" id="unsavedExitDiscardBtn">Salir sin guardar</button>
+      <button class="btn" id="unsavedExitCancelBtn">Cancelar</button>
+    </div>
+  </dialog>
+
   <script>
     const appState = {
       activeScreenId: null,
@@ -974,6 +986,10 @@
     const inputDialogFieldEl = document.getElementById('inputDialogField');
     const inputDialogCancelBtnEl = document.getElementById('inputDialogCancelBtn');
     const inputDialogSaveBtnEl = document.getElementById('inputDialogSaveBtn');
+    const unsavedExitDialogEl = document.getElementById('unsavedExitDialog');
+    const unsavedExitSaveBtnEl = document.getElementById('unsavedExitSaveBtn');
+    const unsavedExitDiscardBtnEl = document.getElementById('unsavedExitDiscardBtn');
+    const unsavedExitCancelBtnEl = document.getElementById('unsavedExitCancelBtn');
     const characterContextMenuEl = document.getElementById('characterContextMenu');
     const characterContextToggleBtnEl = document.getElementById('characterContextToggleBtn');
     const renameContextMenuEl = document.getElementById('renameContextMenu');
@@ -990,6 +1006,9 @@
     let hasUnsavedChanges = false;
     let isSavingWorkspace = false;
     let tempEntityCounter = -1;
+    let allowExit = false;
+    let pendingExitAction = null;
+    let unsavedExitPromptOpen = false;
 
     function chooseInitialPanelId(screenId) {
       const panels = appState.panels.filter((p) => p.screen_id === screenId);
@@ -1232,6 +1251,64 @@
       } finally {
         isSavingWorkspace = false;
         updateSaveButtonState();
+      }
+    }
+
+    async function showUnsavedExitDialog() {
+      if (unsavedExitPromptOpen) return;
+      unsavedExitPromptOpen = true;
+
+      const decision = await new Promise((resolve) => {
+        const cleanup = () => {
+          unsavedExitSaveBtnEl.onclick = null;
+          unsavedExitDiscardBtnEl.onclick = null;
+          unsavedExitCancelBtnEl.onclick = null;
+          unsavedExitDialogEl.oncancel = null;
+        };
+
+        unsavedExitSaveBtnEl.onclick = () => {
+          cleanup();
+          unsavedExitDialogEl.close();
+          resolve('save');
+        };
+        unsavedExitDiscardBtnEl.onclick = () => {
+          cleanup();
+          unsavedExitDialogEl.close();
+          resolve('discard');
+        };
+        unsavedExitCancelBtnEl.onclick = () => {
+          cleanup();
+          unsavedExitDialogEl.close();
+          resolve('cancel');
+        };
+        unsavedExitDialogEl.oncancel = () => {
+          cleanup();
+          resolve('cancel');
+        };
+
+        unsavedExitDialogEl.showModal();
+      });
+
+      unsavedExitPromptOpen = false;
+
+      if (decision === 'cancel') {
+        pendingExitAction = null;
+        return;
+      }
+
+      if (decision === 'save') {
+        await saveWorkspace();
+        if (hasUnsavedChanges) {
+          pendingExitAction = null;
+          return;
+        }
+      }
+
+      allowExit = true;
+      if (pendingExitAction === 'reload') {
+        window.location.reload();
+      } else {
+        window.close();
       }
     }
 
@@ -2208,10 +2285,24 @@
 
     document.getElementById('saveWorkspaceBtn').addEventListener('click', saveWorkspace);
 
-    window.addEventListener('beforeunload', (event) => {
+    window.addEventListener('keydown', (event) => {
       if (!hasUnsavedChanges) return;
+      const wantsReload = event.key === 'F5' || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'r');
+      if (!wantsReload) return;
       event.preventDefault();
-      event.returnValue = '';
+      pendingExitAction = 'reload';
+      showUnsavedExitDialog();
+    }, true);
+
+    window.addEventListener('beforeunload', (event) => {
+      if (allowExit || !hasUnsavedChanges) return;
+      event.preventDefault();
+      if (!pendingExitAction) {
+        pendingExitAction = 'close';
+      }
+      setTimeout(() => {
+        showUnsavedExitDialog();
+      }, 0);
     });
 
     loadBootstrapData().finally(() => {
