@@ -2187,8 +2187,8 @@
         const updatedDefinition = await persistModuleDefinitionSize(moduleData.module_type, defaultWidth, defaultHeight);
         const existingDef = appState.moduleDefinitions.find((item) => item.code === updatedDefinition.code);
         if (existingDef) {
-          existingDef.default_width = Number(updatedDefinition.default_width);
-          existingDef.default_height = Number(updatedDefinition.default_height);
+          existingDef.defaultW = Number(updatedDefinition.default_width);
+          existingDef.defaultH = Number(updatedDefinition.default_height);
           existingDef.updated_at = updatedDefinition.updated_at || existingDef.updated_at;
         }
       } catch (error) {
