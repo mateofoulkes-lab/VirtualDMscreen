@@ -836,6 +836,8 @@
         <button class="icon-btn" id="newScreenBtn" title="Nueva pantalla">＋</button>
       </div>
 
+      <button class="btn save-btn" id="saveWorkspaceBtn" type="button" disabled title="Guardar cambios">💾 Guardar</button>
+
       <div class="toolbar-group">
         <label for="gridSize">Grilla</label>
         <select id="gridSize">
@@ -936,6 +938,18 @@
     </div>
   </dialog>
 
+  <dialog id="unsavedExitDialog">
+    <div class="dialog-inner">
+      <h3>Hay cambios sin guardar</h3>
+      <p>¿Querés guardar los cambios antes de salir?</p>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn primary" id="unsavedExitSaveBtn">Guardar y salir</button>
+      <button class="btn danger-soft" id="unsavedExitDiscardBtn">Salir sin guardar</button>
+      <button class="btn" id="unsavedExitCancelBtn">Cancelar</button>
+    </div>
+  </dialog>
+
   <script>
     const appState = {
       activeScreenId: null,
@@ -972,6 +986,10 @@
     const inputDialogFieldEl = document.getElementById('inputDialogField');
     const inputDialogCancelBtnEl = document.getElementById('inputDialogCancelBtn');
     const inputDialogSaveBtnEl = document.getElementById('inputDialogSaveBtn');
+    const unsavedExitDialogEl = document.getElementById('unsavedExitDialog');
+    const unsavedExitSaveBtnEl = document.getElementById('unsavedExitSaveBtn');
+    const unsavedExitDiscardBtnEl = document.getElementById('unsavedExitDiscardBtn');
+    const unsavedExitCancelBtnEl = document.getElementById('unsavedExitCancelBtn');
     const characterContextMenuEl = document.getElementById('characterContextMenu');
     const characterContextToggleBtnEl = document.getElementById('characterContextToggleBtn');
     const renameContextMenuEl = document.getElementById('renameContextMenu');
